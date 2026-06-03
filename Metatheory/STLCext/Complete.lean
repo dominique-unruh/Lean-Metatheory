@@ -28,10 +28,16 @@ open Term
 /-! ## Complete Development -/
 
 /-- Complete development: reduce all redexes in a term. -/
+noncomputable
 def complete : Term → Term
   | var n => var n
   | lam M => lam (complete M)
   | app (lam M) N => (complete M)[complete N]
+  | app (@func _ t u ht hu f) N =>
+      let N' := complete N
+      open Classical in
+      if h : Term.isBasicType t N' then BasicTerm.toTerm (f (Term.toBasicTerm t N' h))
+      else Term.app (@Term.func _ t u ht hu f) N'
   | app M N => app (complete M) (complete N)
   | pair M N => pair (complete M) (complete N)
   | fst (pair M _) => complete M
@@ -45,6 +51,7 @@ def complete : Term → Term
   | case M N₁ N₂ => case (complete M) (complete N₁) (complete N₂)
   | unit => unit
   | value v => value v
+  | @func _ t u ht hu f => @func _ t u ht hu f
 
 /-! ## Basic Properties -/
 
@@ -75,6 +82,71 @@ theorem par_pair_inv {M M' N N' : Term} (h : pair M N ⇒ pair M' N') : M ⇒ M'
   cases h with
   | pair hM hN => exact ⟨hM, hN⟩
 
+theorem complete_isBasicType (hb : isBasicType t N) : complete N = N := by
+  induction t generalizing N with
+  | unit =>
+    cases N with
+    | unit => rfl
+    | _ => simp_all [isBasicType]
+  | base bt =>
+    cases N with
+    | value v => rfl
+    | _ => simp_all [isBasicType]
+  | arr A B ihA ihB =>
+    cases N <;> simp_all [isBasicType]
+  | prod a b iha ihb =>
+    cases N with
+    | pair N₁ N₂ =>
+      simp only [isBasicType] at hb
+      obtain ⟨hb₁, hb₂⟩ := hb
+      simp [complete, iha hb₁, ihb hb₂]
+    | _ => simp_all [isBasicType]
+  | sum a b iha ihb =>
+    cases N with
+    | inl N' =>
+      simp only [isBasicType] at hb
+      simp [complete, iha hb]
+    | inr N' =>
+      simp only [isBasicType] at hb
+      simp [complete, ihb hb]
+    | _ => simp_all [isBasicType]
+
+theorem par_isBasicType (h : M ⇒ N) (hb : isBasicType t M) : M = N := by
+  induction t generalizing M N with
+  | unit =>
+    cases M with
+    | unit => cases h; rfl
+    | _ => simp_all [isBasicType]
+  | base bt =>
+    cases M with
+    | value v => cases h; rfl
+    | _ => simp_all [isBasicType]
+  | arr A B ihA ihB =>
+    cases M <;> simp_all [isBasicType]
+  | prod a b iha ihb =>
+    cases M with
+    | pair M₁ M₂ =>
+      simp only [isBasicType] at hb
+      obtain ⟨hb₁, hb₂⟩ := hb
+      cases h with
+      | pair h₁ h₂ => rw [iha h₁ hb₁, ihb h₂ hb₂]
+    | _ => simp_all [isBasicType]
+  | sum a b iha ihb =>
+    cases M with
+    | inl M' =>
+      simp only [isBasicType] at hb
+      cases h with
+      | inl h₁ => rw [iha h₁ hb]
+    | inr M' =>
+      simp only [isBasicType] at hb
+      cases h with
+      | inr h₂ => rw [ihb h₂ hb]
+    | _ => simp_all [isBasicType]
+
+theorem par_preserves_isBasicType (h : M ⇒ N) (h' : isBasicType t M) : isBasicType t N := by
+    let eq : M = N := par_isBasicType h h'
+    simp [← eq, h']
+
 /-- If M ⇒ N, then N ⇒ complete M. -/
 theorem par_complete {M N : Term} (h : M ⇒ N) : N ⇒ complete M := by
   induction h with
@@ -82,7 +154,7 @@ theorem par_complete {M N : Term} (h : M ⇒ N) : N ⇒ complete M := by
     exact ParRed.refl _
   | lam hM ih =>
     exact ParRed.lam ih
-  | app hM hN ihM ihN =>
+  | @app M M' N N' hM hN ihM ihN =>
     cases hM with
     | var n =>
       simp [complete]
@@ -135,6 +207,21 @@ theorem par_complete {M N : Term} (h : M ⇒ N) : N ⇒ complete M := by
     | value v =>
       simp [complete]
       exact ParRed.app ihM ihN
+    | @func t u ht hu f =>
+      simp only [complete]
+      split
+      · exact ParRed.funcApp ihN ‹_›
+      · exact ParRed.app (ParRed.func f) ihN
+    | @funcApp t u ht hu f K K' K_red_K'' basic_K' =>
+        let compl_fK := complete (Term.app (func (ht:=ht) (hu:=hu) f) K)
+        let fK' := (f (toBasicTerm t K' basic_K')).toTerm
+        have ihM : fK' ⇒ compl_fK := ihM
+        have basic_fK' : isBasicType u fK' := isBasicType_toTerm _
+        have eq : fK' = compl_fK := par_isBasicType ihM basic_fK'
+        apply ParRed.app
+        · change fK' ⇒ compl_fK
+          simp [eq, ParRed.refl]
+        · exact ihN
   | pair hM hN ihM ihN =>
     simp [complete]
     exact ParRed.pair ihM ihN
@@ -194,6 +281,18 @@ theorem par_complete {M N : Term} (h : M ⇒ N) : N ⇒ complete M := by
   | value v =>
     simp [complete]
     exact ParRed.value v
+  | func f =>
+    simp [complete]
+    exact ParRed.func f
+  | @funcApp t u ht hu f N N' hN basic_N' ihN =>
+    simp only [complete]
+    split
+    · rename_i basic_N
+      -- let complete_stuck := complete_isBasicType basic_N'
+      have N'_eq_completeN := par_isBasicType ihN basic_N'
+      simp [N'_eq_completeN]
+      apply ParRed.refl
+    · grind only [par_isBasicType]
 
 /-- Parallel reduction satisfies diamond. -/
 theorem diamond {M N₁ N₂ : Term} (h1 : M ⇒ N₁) (h2 : M ⇒ N₂) :
