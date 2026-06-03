@@ -17,6 +17,9 @@ using parallel reduction and the diamond property.
 
 namespace Metatheory.STLCext
 
+section Spec
+variable [STLCspec]
+
 open Term
 open Rewriting (Diamond Confluent SemiConfluent Joinable Star)
 
@@ -89,4 +92,5 @@ theorem church_rosser {M N₁ N₂ : Term} (h1 : M ⟶* N₁) (h2 : M ⟶* N₂)
     ∃ P, (N₁ ⟶* P) ∧ (N₂ ⟶* P) :=
   confluence h1 h2
 
+end Spec
 end Metatheory.STLCext

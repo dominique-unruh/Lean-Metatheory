@@ -26,6 +26,9 @@ import Metatheory.STLCext.Terms
 
 namespace Metatheory.STLCext
 
+section Spec
+variable [STLCspec]
+
 open Term
 
 /-! ## Single-Step Reduction -/
@@ -389,5 +392,9 @@ theorem subst0_step_right {M N N' : Term} (hstep : Step N N') :
   | unit =>
     simp only [Term.subst]
     exact MultiStep.refl _
+  | value v =>
+    simp only [Term.subst]
+    exact MultiStep.refl _
 
+end Spec
 end Metatheory.STLCext

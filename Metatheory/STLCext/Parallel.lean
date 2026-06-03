@@ -21,6 +21,9 @@ Parallel reduction contracts multiple redexes simultaneously:
 
 namespace Metatheory.STLCext
 
+section Spec
+variable [STLCspec]
+
 open Term
 
 /-! ## Parallel Reduction -/
@@ -49,6 +52,7 @@ inductive ParRed : Term → Term → Prop where
   | caseInr : ∀ {V V' N₁ N₁' N₂ N₂'}, ParRed V V' → ParRed N₁ N₁' → ParRed N₂ N₂' →
       ParRed (case (inr V) N₁ N₂) (N₂'[V'])
   | unit : ParRed unit unit
+  | value : ∀ {t} (v : BaseTypeValue t), ParRed (value v) (value v)
 
 /-- Notation for parallel reduction. -/
 scoped infix:50 " ⇒ " => ParRed
@@ -68,6 +72,7 @@ theorem refl (M : Term) : M ⇒ M := by
   | inr M ih => exact ParRed.inr ih
   | case M N₁ N₂ ihM ihN₁ ihN₂ => exact ParRed.case ihM ihN₁ ihN₂
   | unit => exact ParRed.unit
+  | value v => exact ParRed.value v
 
 /-- Single-step reduction implies parallel reduction. -/
 theorem of_step {M N : Term} (h : Step M N) : M ⇒ N := by
@@ -151,6 +156,7 @@ theorem toMulti {M N : Term} (h : M ⇒ N) : M ⟶* N := by
       MultiStep.single (Step.caseInr V' N₁' N₂')
     exact MultiStep.trans h1 h2
   | unit => exact MultiStep.refl _
+  | value v => exact MultiStep.refl _
 
 /-- Parallel reduction is preserved under shifting. -/
 theorem shift {M M' : Term} (d : Nat) (c : Nat) (h : M ⇒ M') :
@@ -204,6 +210,9 @@ theorem shift {M M' : Term} (d : Nat) (c : Nat) (h : M ⇒ M') :
   | unit =>
     simp [Term.shift]
     exact ParRed.unit
+  | value v =>
+    simp [Term.shift]
+    exact ParRed.value v
 
 /-- Parallel reduction is preserved under substitution. -/
 theorem subst_gen {M M' : Term} (j : Nat) {N N' : Term}
@@ -279,6 +288,9 @@ theorem subst_gen {M M' : Term} (j : Nat) {N N' : Term}
   | unit =>
     simp [Term.subst]
     exact ParRed.unit
+  | value v =>
+    simp [Term.subst]
+    exact ParRed.value v
 
 /-- Parallel reduction is preserved under substitution at 0. -/
 theorem subst {M M' N N' : Term} (hM : M ⇒ M') (hN : N ⇒ N') :
@@ -287,4 +299,5 @@ theorem subst {M M' N N' : Term} (hM : M ⇒ M') (hN : N ⇒ N') :
 
 end ParRed
 
+end Spec
 end Metatheory.STLCext

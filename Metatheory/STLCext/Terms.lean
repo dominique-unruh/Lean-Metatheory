@@ -33,6 +33,9 @@ import Metatheory.STLCext.Types
 
 namespace Metatheory.STLCext
 
+section Spec
+variable [STLCspec]
+
 /-! ## Term Definition -/
 
 /-- Lambda calculus terms with products, sums, and unit using de Bruijn indices -/
@@ -47,6 +50,7 @@ inductive Term : Type where
   | inr  : Term → Term                   -- Right injection inr M
   | case : Term → Term → Term → Term     -- Case analysis: case M of inl → N₁ | inr → N₂
   | unit : Term                          -- Unit value ()
+  | value : ∀ {t : BaseTypes}, BaseTypeValue t → Term -- Value of base type `t`
 deriving Repr, DecidableEq
 
 namespace Term
@@ -76,6 +80,7 @@ def shift (d : Int) (c : Nat) : Term → Term
   | inr M => inr (shift d c M)
   | case M N₁ N₂ => case (shift d c M) (shift d (c + 1) N₁) (shift d (c + 1) N₂)
   | unit => unit
+  | value v => value v
 
 /-- Shorthand for shifting by 1 from cutoff 0 -/
 abbrev shift1 (M : Term) : Term := shift 1 0 M
@@ -99,6 +104,7 @@ def subst (j : Nat) (N : Term) : Term → Term
   | inr M => inr (subst j N M)
   | case M N₁ N₂ => case (subst j N M) (subst (j + 1) (shift1 N) N₁) (subst (j + 1) (shift1 N) N₂)
   | unit => unit
+  | value v => value v
 
 /-- Substitute for variable 0 -/
 abbrev subst0 (N : Term) (M : Term) : Term := subst 0 N M
@@ -150,6 +156,7 @@ theorem shift_zero (c : Nat) (M : Term) : shift 0 c M = M := by
     simp only [shift]
     rw [ihM, ihN₁, ihN₂]
   | unit => rfl
+  | value _ => rfl
 
 /-- Shifting a variable below cutoff leaves it unchanged -/
 theorem shift_var_lt {n c : Nat} {d : Int} (h : n < c) :
@@ -208,6 +215,7 @@ theorem shift_shift (d₁ d₂ : Nat) (c : Nat) (M : Term) :
     simp only [shift]
     rw [ihM c, ihN₁ (c + 1), ihN₂ (c + 1)]
   | unit => rfl
+  | value v => rfl
 
 /-- Composing shifts at consecutive cutoffs -/
 theorem shift_shift_succ (c : Nat) (M : Term) :
@@ -251,6 +259,7 @@ theorem shift_shift_succ (c : Nat) (M : Term) :
     simp only [shift]
     rw [ihM c, ihN₁ (c + 1), ihN₂ (c + 1)]
   | unit => rfl
+  | value _ => rfl
 
 /-- Composing shifts at offset cutoffs -/
 theorem shift_shift_offset (c b : Nat) (N : Term) :
@@ -298,6 +307,7 @@ theorem shift_shift_offset (c b : Nat) (N : Term) :
     have h_assoc : c + b + 1 = c + (b + 1) := by omega
     rw [ihM c b, h_assoc, ihN₁ c (b + 1), ihN₂ c (b + 1)]
   | unit => rfl
+  | value _ => rfl
 
 /-- Shifts at different cutoffs commute -/
 theorem shift_shift_comm (d₁ d₂ : Nat) (c₁ c₂ : Nat) (M : Term) (h : c₁ ≤ c₂) :
@@ -351,6 +361,7 @@ theorem shift_shift_comm (d₁ d₂ : Nat) (c₁ c₂ : Nat) (M : Term) (h : c�
     have heq : c₂ + 1 + d₁ = c₂ + d₁ + 1 := by omega
     rw [ihM c₁ c₂ h, ihN₁ (c₁ + 1) (c₂ + 1) h', heq, ihN₂ (c₁ + 1) (c₂ + 1) h', heq]
   | unit => rfl
+  | value v => rfl
 
 /-! ## Key Substitution-Shift Interaction -/
 
@@ -396,6 +407,7 @@ theorem subst_shift_cancel (M : Term) (N : Term) (c : Nat) :
     simp only [shift, subst]
     rw [ihM, ihN₁, ihN₂]
   | unit => rfl
+  | value v => rfl
 
 /-- Substituting for a shifted variable cancels out -/
 theorem subst_shift1 (M N : Term) : (shift 1 0 M)[N] = M :=
@@ -478,6 +490,7 @@ theorem shift_subst_at (M N : Term) (d : Nat) (c j : Nat) (hjc : j ≤ c) :
     · rw [ihN₁ (shift1 N) d (c + 1) (j + 1) hjc', h_comm]
     · rw [ihN₂ (shift1 N) d (c + 1) (j + 1) hjc', h_comm]
   | unit => rfl
+  | value v => rfl
 
 /-- Shift-substitution interaction lemma -/
 theorem shift_subst (M N : Term) (d : Nat) (c : Nat) :
@@ -622,6 +635,7 @@ theorem shift1_subst_gen (L N : Term) (j c : Nat) :
       simp only [h_arith1]
       exact ihN₂ N j (c + 1)
   | unit => rfl
+  | value v => rfl
 
 /-- shift1 commutes with subst -/
 theorem shift1_subst (L N : Term) (j : Nat) :
@@ -766,6 +780,7 @@ theorem subst_subst_gen_full (M N L : Term) (j i : Nat) :
       simp only [h_arith1]
       exact ihN₂ N L j (i + 1)
   | unit => rfl
+  | value v => rfl
 
 /-- Generalized substitution composition lemma.
     Derived from subst_subst_gen_full at i=0. -/
@@ -780,5 +795,7 @@ theorem subst_subst_gen (M N L : Term) (j : Nat) :
   exact h
 
 end Term
+
+end Spec
 
 end Metatheory.STLCext

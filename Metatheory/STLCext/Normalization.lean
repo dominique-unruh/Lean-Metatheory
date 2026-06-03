@@ -26,6 +26,9 @@ import Metatheory.Rewriting.Basic
 
 namespace Metatheory.STLCext
 
+section Spec
+variable [spec: STLCspec]
+
 /-! ## Strong Normalization Definition -/
 
 /-- A term is strongly normalizing if all reduction sequences from it terminate. -/
@@ -156,6 +159,7 @@ def IsNeutral : Term → Prop
   | Term.case (Term.inr _) _ _ => False
   | Term.case _ _ _ => True
   | Term.unit => False
+  | Term.value _ => False
 
 theorem neutral_var (n : Nat) : IsNeutral (Term.var n) := trivial
 
@@ -1512,6 +1516,7 @@ def applySubst (σ : Nat → Term) : Term → Term
   | Term.inr M => Term.inr (applySubst σ M)
   | Term.case M N₁ N₂ => Term.case (applySubst σ M) (applySubst (liftSubst σ) N₁) (applySubst (liftSubst σ) N₂)
   | Term.unit => Term.unit
+  | Term.value v => Term.value v
 where
   liftSubst (σ : Nat → Term) (n : Nat) : Term :=
     if n = 0 then Term.var 0 else Term.shift1 (σ (n - 1))
@@ -1552,6 +1557,7 @@ theorem applySubst_of_isId {σ : Nat → Term} (h : IsIdSubst σ) : ∀ M, apply
   | case M N₁ N₂ ihM ihN₁ ihN₂ =>
     simp only [applySubst]; rw [ihM h, ihN₁ (liftSubst_preserves_id h), ihN₂ (liftSubst_preserves_id h)]
   | unit => simp only [applySubst]
+  | value v => simp only [applySubst]
 
 theorem idSubst_isId : IsIdSubst idSubst := fun _ => rfl
 
@@ -1649,6 +1655,8 @@ theorem shift_shifted_eq_gen (M : Term) (j c : Nat) :
       rw [h]
       exact ihN2 j (c + 1)
   | unit =>
+    simp only [Term.shift]
+  | value v =>
     simp only [Term.shift]
 
 /-- Corollary: shift 1 0 X = shift 1 j X when X = shift j 0 M -/
@@ -1781,6 +1789,9 @@ theorem subst_applySubst_gen : ∀ (M : Term) (j : Nat) (σ : Nat → Term) (N :
   | unit =>
     intro j σ N
     simp only [applySubst, Term.subst]
+  | value v =>
+    intro j σ N
+    simp only [applySubst, Term.subst]
 
 theorem subst_applySubst_lift : ∀ (σ : Nat → Term) (N : Term) (M : Term),
     Term.subst0 N (applySubst (applySubst.liftSubst σ) M) = applySubst (extendSubst σ N) M := by
@@ -1817,7 +1828,7 @@ theorem sn_from_subst_var {M : Term} (h : SN (Term.subst0 (Term.var 0) M)) : SN 
       apply sn_intro
       intro M'_step hM'_step
       have hstep : Step (Term.subst0 (Term.var 0) M) (Term.subst0 (Term.var 0) M'_step) :=
-        @subst0_step_left M M'_step (Term.var 0) hM'_step
+        @subst0_step_left _ M M'_step (Term.var 0) hM'_step
       rw [← hTeq] at hstep
       exact ih (Term.subst0 (Term.var 0) M'_step) hstep M'_step rfl
   exact this (Term.subst0 (Term.var 0) M) h M rfl
@@ -1962,5 +1973,7 @@ theorem type_safety {M N : Term} {A : Ty}
     (htype : HasType [] M A) (hsteps : MultiStep M N) :
     IsValue N ∨ ∃ P, Step N P :=
   progress (subject_reduction_multi htype hsteps)
+
+end Spec
 
 end Metatheory.STLCext

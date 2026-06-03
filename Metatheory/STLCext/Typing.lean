@@ -36,6 +36,9 @@ import Metatheory.STLCext.Reduction
 
 namespace Metatheory.STLCext
 
+section Spec
+variable [spec: STLCspec]
+
 /-! ## Typing Contexts -/
 
 /-- A typing context is a list of types (de Bruijn indexed) -/
@@ -119,11 +122,13 @@ def Context.extend (Γ : Context) (A : Ty) : Context := A :: Γ
 
 /-! ## Helper Lemmas for Context Manipulation -/
 
+omit spec in
 /-- Helper lemma for get? on appended lists -/
 theorem get?_append_of_lt {α : Type} (l₁ l₂ : List α) (n : Nat) (h : n < l₁.length) :
     (l₁ ++ l₂)[n]? = l₁[n]? := by
   simp only [List.getElem?_append_left h]
 
+omit spec in
 theorem get?_append_of_ge {α : Type} (l₁ l₂ : List α) (n : Nat) (h : n ≥ l₁.length) :
     (l₁ ++ l₂)[n]? = l₂[n - l₁.length]? := by
   simp only [List.getElem?_append_right h]
@@ -256,7 +261,7 @@ theorem typing_shift_at_aux {Γ Γ₁ Γ₂ : Context} {M : Term} {A B : Ty}
 theorem typing_shift {Γ : Context} {N : Term} {A B : Ty}
     (h : HasType Γ N A) :
     HasType (B :: Γ) (Term.shift 1 0 N) A := by
-  have h' := @typing_shift_at_aux Γ [] Γ N A B (by simp) h
+  have h' := @typing_shift_at_aux _ Γ [] Γ N A B (by simp) h
   simp at h'
   exact h'
 
@@ -417,7 +422,7 @@ theorem substitution_typing {Γ : Context} {M N : Term} {A B : Ty}
   unfold Term.subst0
   have hM' : HasType ([] ++ [A] ++ Γ) M B := by simp; exact hM
   have hN' : HasType ([] ++ Γ) N A := by simp; exact hN
-  have h := @substitution_typing_gen_aux ([] ++ [A] ++ Γ) M B hM' [] Γ N A 0 (by simp) (by simp) hN'
+  have h := @substitution_typing_gen_aux _ ([] ++ [A] ++ Γ) M B hM' [] Γ N A 0 (by simp) (by simp) hN'
   simp at h
   exact h
 
@@ -538,6 +543,7 @@ theorem canonical_forms_arr {M : Term} {A B : Ty}
   | inr _ => cases htype
   | case _ _ _ => cases hval
   | unit => cases htype
+  | value v => cases htype
 
 /-- Canonical forms for product types -/
 theorem canonical_forms_prod {M : Term} {A B : Ty}
@@ -554,6 +560,7 @@ theorem canonical_forms_prod {M : Term} {A B : Ty}
   | inr _ => cases htype
   | case _ _ _ => cases hval
   | unit => cases htype
+  | value v => cases htype
 
 /-- Canonical forms for sum types -/
 theorem canonical_forms_sum {M : Term} {A B : Ty}
@@ -570,6 +577,7 @@ theorem canonical_forms_sum {M : Term} {A B : Ty}
   | inr M' => exact Or.inr ⟨M', rfl⟩
   | case _ _ _ => cases hval
   | unit => cases htype
+  | value v => cases htype
 
 /-- Progress: A closed well-typed term is either a value or can step -/
 theorem progress {M : Term} {A : Ty}
@@ -692,5 +700,7 @@ theorem progress {M : Term} {A : Ty}
   | Term.unit =>
     left
     exact trivial
+
+end Spec
 
 end Metatheory.STLCext

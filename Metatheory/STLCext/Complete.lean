@@ -20,6 +20,9 @@ This yields diamond: N₁ ⇒ complete M and N₂ ⇒ complete M.
 
 namespace Metatheory.STLCext
 
+section Spec
+variable [STLCspec]
+
 open Term
 
 /-! ## Complete Development -/
@@ -41,6 +44,7 @@ def complete : Term → Term
   | case (inr V) _ N₂ => (complete N₂)[complete V]
   | case M N₁ N₂ => case (complete M) (complete N₁) (complete N₂)
   | unit => unit
+  | value v => value v
 
 /-! ## Basic Properties -/
 
@@ -128,6 +132,9 @@ theorem par_complete {M N : Term} (h : M ⇒ N) : N ⇒ complete M := by
     | unit =>
       simp [complete]
       exact ParRed.app ihM ihN
+    | value v =>
+      simp [complete]
+      exact ParRed.app ihM ihN
   | pair hM hN ihM ihN =>
     simp [complete]
     exact ParRed.pair ihM ihN
@@ -184,10 +191,14 @@ theorem par_complete {M N : Term} (h : M ⇒ N) : N ⇒ complete M := by
   | unit =>
     simp [complete]
     exact ParRed.unit
+  | value v =>
+    simp [complete]
+    exact ParRed.value v
 
 /-- Parallel reduction satisfies diamond. -/
 theorem diamond {M N₁ N₂ : Term} (h1 : M ⇒ N₁) (h2 : M ⇒ N₂) :
     ∃ P, (N₁ ⇒ P) ∧ (N₂ ⇒ P) :=
   ⟨complete M, par_complete h1, par_complete h2⟩
 
+end Spec
 end Metatheory.STLCext
