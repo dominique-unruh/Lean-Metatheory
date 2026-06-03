@@ -70,6 +70,10 @@ inductive Step : Term → Term → Prop where
   | caseL : ∀ {M N₁ N₁' N₂}, Step N₁ N₁' → Step (case M N₁ N₂) (case M N₁' N₂)
   /-- Congruence: case right branch -/
   | caseR : ∀ {M N₁ N₂ N₂'}, Step N₂ N₂' → Step (case M N₁ N₂) (case M N₁ N₂')
+  /-- Function application: app(func f)(N) → f(N) when N is a basic term -/
+  | funcApp : ∀ {t u : Ty} {ht : t.isArrowFree} {hu : u.isArrowFree}
+      (f : BasicTerm t → BasicTerm u) (N : Term) (h : Term.isBasicType t N),
+      Step (app (@Term.func _ t u ht hu f) N) (BasicTerm.toTerm (f (Term.toBasicTerm t N h)))
 
 /-- Notation for reduction -/
 scoped infix:50 " ⟶ " => Step
@@ -263,6 +267,11 @@ private theorem subst_preserves_step (j : Nat) {M M' N : Term} (hstep : Step M M
     simp only [Term.subst]
     apply Step.caseR
     apply ih
+  | funcApp f Nb h =>
+    simp only [Term.subst]
+    rw [Term.isBasicType_no_subst j N h,
+        Term.isBasicType_no_subst j N (Term.isBasicType_toTerm (f (Term.toBasicTerm _ Nb h)))]
+    exact Step.funcApp f Nb h
 
 /-- Substitution preserves reduction in the substituted term -/
 theorem subst0_step_left {M M' N : Term} (hstep : Step M M') :
@@ -340,6 +349,11 @@ private theorem shift_preserves_step (d : Nat) (c : Nat) {M M' : Term} (hstep : 
     simp only [Term.shift]
     apply Step.caseR
     apply ih
+  | funcApp f Nb h =>
+    simp only [Term.shift]
+    rw [Term.isBasicType_no_shift d c h,
+        Term.isBasicType_no_shift d c (Term.isBasicType_toTerm (f (Term.toBasicTerm _ Nb h)))]
+    exact Step.funcApp f Nb h
 
 /-- Substitution preserves reduction in argument (multi-step) -/
 theorem subst0_step_right {M N N' : Term} (hstep : Step N N') :
@@ -389,10 +403,7 @@ theorem subst0_step_right {M N N' : Term} (hstep : Step N N') :
     have h1 := ihN₁ (j + 1) (Term.shift1 N₀) (Term.shift1 N₀') hshift
     have h2 := ihN₂ (j + 1) (Term.shift1 N₀) (Term.shift1 N₀') hshift
     exact MultiStep.trans (MultiStep.caseS h0) (MultiStep.trans (MultiStep.caseL h1) (MultiStep.caseR h2))
-  | unit =>
-    simp only [Term.subst]
-    exact MultiStep.refl _
-  | value v =>
+  | _ =>
     simp only [Term.subst]
     exact MultiStep.refl _
 

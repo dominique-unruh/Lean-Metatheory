@@ -23,20 +23,26 @@ namespace Metatheory.STLCext
 class STLCspec where
   baseTypes : Type _
   baseTypeValue : baseTypes → Type _
+  -- basicFunctions : Type _ := Empty
+  -- basicFunctionType : basicFunctions → (baseTypes × baseTypes)
   [decEqBase : DecidableEq baseTypes]
   [reprBase : Repr baseTypes]
   [decEqValues : ∀ t : baseTypes, DecidableEq (baseTypeValue t)]
   [reprValues : ∀ t : baseTypes, Repr (baseTypeValue t)]
 
 @[reducible]
-def BaseTypes [inst : STLCspec] := inst.baseTypes
+def BaseType [inst : STLCspec] := inst.baseTypes
 @[reducible]
-def BaseTypeValue [inst : STLCspec] : BaseTypes → Type _ := inst.baseTypeValue
+def BaseTypeValue [inst : STLCspec] : BaseType → Type _ := inst.baseTypeValue
+-- @[reducible]
+-- def BasicFunctionTypes [inst : STLCspec] := inst.basicFunctionType
 
-instance [s : STLCspec] : DecidableEq BaseTypes := s.decEqBase
-instance [s : STLCspec] : Repr BaseTypes := s.reprBase
-instance [s : STLCspec] (t: BaseTypes) : DecidableEq (BaseTypeValue t) := s.decEqValues t
-instance [s : STLCspec] (t: BaseTypes) : Repr (BaseTypeValue t) := s.reprValues t
+instance [s : STLCspec] : DecidableEq BaseType := s.decEqBase
+instance [s : STLCspec] : Repr BaseType := s.reprBase
+instance [s : STLCspec] (t: BaseType) : DecidableEq (BaseTypeValue t) := s.decEqValues t
+instance [s : STLCspec] (t: BaseType) : Repr (BaseTypeValue t) := s.reprValues t
+-- instance [s : STLCspec] : DecidableEq BasicFunctions := sorry
+-- instance [s : STLCspec] : Repr BasicFunctions := sorry
 
 /-! ## Simple Types with Products and Sums -/
 
@@ -45,12 +51,14 @@ variable [spec: STLCspec]
 
 /-- Simple types: base types, function types, products, sums, and unit -/
 inductive Ty where
-  | base : BaseTypes → Ty        -- Base type indexed by natural number
+  | base : BaseType → Ty        -- Base type indexed by natural number
   | arr  : Ty → Ty → Ty    -- Function type A → B
   | prod : Ty → Ty → Ty    -- Product type A × B
   | sum  : Ty → Ty → Ty    -- Sum type A + B
   | unit : Ty              -- Unit type (terminal object)
 deriving DecidableEq, Repr
+
+-- TODO define a "subset" of Ty, with all constructors except `arr`
 
 /-- Notation for function types -/
 scoped infixr:70 " ⇒ " => Ty.arr
@@ -72,6 +80,12 @@ def isGround : Ty → Bool
   | prod _ _ => false
   | sum _ _ => false
   | unit => true
+
+def isArrowFree : Ty → Bool
+    | .arr _ _ => false
+    | .prod A B => isArrowFree A && isArrowFree B
+    | .sum A B  => isArrowFree A && isArrowFree B
+    | _        => true
 
 /-- Size of a type (number of type constructors) -/
 def size : Ty → Nat
@@ -118,6 +132,8 @@ section BaseTypeExamples
 local instance exampleSpec : STLCspec where
   baseTypes := Bool
   baseTypeValue t := if t then Bool else Nat
+  -- basicFunctions := Empty
+  -- basicFunctionType := nofun
   decEqValues t := match t with | true => inferInstanceAs (DecidableEq Bool) | false => inferInstanceAs (DecidableEq Nat)
   reprValues t := match t with | true => inferInstanceAs (Repr Bool) | false => inferInstanceAs (Repr Nat)
 

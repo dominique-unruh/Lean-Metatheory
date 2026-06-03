@@ -53,6 +53,14 @@ inductive ParRed : Term → Term → Prop where
       ParRed (case (inr V) N₁ N₂) (N₂'[V'])
   | unit : ParRed unit unit
   | value : ∀ {t} (v : BaseTypeValue t), ParRed (value v) (value v)
+  | func : ∀ {t u : Ty} {ht : t.isArrowFree} {hu : u.isArrowFree}
+      (f : BasicTerm t → BasicTerm u),
+      ParRed (@Term.func _ t u ht hu f) (@Term.func _ t u ht hu f)
+  | funcApp : ∀ {t u : Ty} {ht : t.isArrowFree} {hu : u.isArrowFree}
+      {f : BasicTerm t → BasicTerm u} {N N' : Term}
+      (hN : ParRed N N') (h : Term.isBasicType t N'),
+      ParRed (app (@Term.func _ t u ht hu f) N)
+             (BasicTerm.toTerm (f (Term.toBasicTerm t N' h)))
 
 /-- Notation for parallel reduction. -/
 scoped infix:50 " ⇒ " => ParRed
@@ -73,6 +81,7 @@ theorem refl (M : Term) : M ⇒ M := by
   | case M N₁ N₂ ihM ihN₁ ihN₂ => exact ParRed.case ihM ihN₁ ihN₂
   | unit => exact ParRed.unit
   | value v => exact ParRed.value v
+  | func f => exact ParRed.func f
 
 /-- Single-step reduction implies parallel reduction. -/
 theorem of_step {M N : Term} (h : Step M N) : M ⇒ N := by
@@ -111,6 +120,8 @@ theorem of_step {M N : Term} (h : Step M N) : M ⇒ N := by
     exact ParRed.case (refl _) ih (refl _)
   | caseR hstep ih =>
     exact ParRed.case (refl _) (refl _) ih
+  | funcApp f N h =>
+    exact ParRed.funcApp (refl N) h
 
 /-- Parallel reduction implies multi-step reduction. -/
 theorem toMulti {M N : Term} (h : M ⇒ N) : M ⟶* N := by
@@ -157,6 +168,9 @@ theorem toMulti {M N : Term} (h : M ⇒ N) : M ⟶* N := by
     exact MultiStep.trans h1 h2
   | unit => exact MultiStep.refl _
   | value v => exact MultiStep.refl _
+  | func f => exact MultiStep.refl _
+  | @funcApp t u ht hu f N N' hN h ih =>
+    exact MultiStep.trans (MultiStep.appR ih) (MultiStep.single (Step.funcApp f N' h))
 
 /-- Parallel reduction is preserved under shifting. -/
 theorem shift {M M' : Term} (d : Nat) (c : Nat) (h : M ⇒ M') :
@@ -213,6 +227,16 @@ theorem shift {M M' : Term} (d : Nat) (c : Nat) (h : M ⇒ M') :
   | value v =>
     simp [Term.shift]
     exact ParRed.value v
+  | func f =>
+    simp [Term.shift]
+    exact ParRed.func f
+  | @funcApp t u ht hu f N N' hN h ih =>
+    simp only [Term.shift]
+    rw [Term.isBasicType_no_shift d c (Term.isBasicType_toTerm _)]
+    have h_eq : Term.shift (↑d) c N' = N' := Term.isBasicType_no_shift d c h
+    have ihc := ih c
+    rw [h_eq] at ihc
+    exact ParRed.funcApp ihc h
 
 /-- Parallel reduction is preserved under substitution. -/
 theorem subst_gen {M M' : Term} (j : Nat) {N N' : Term}
@@ -291,6 +315,16 @@ theorem subst_gen {M M' : Term} (j : Nat) {N N' : Term}
   | value v =>
     simp [Term.subst]
     exact ParRed.value v
+  | func f =>
+    simp [Term.subst]
+    exact ParRed.func f
+  | @funcApp t u ht hu f Nb Nb' hNb h ih =>
+    simp only [Term.subst]
+    rw [Term.isBasicType_no_subst j N' (Term.isBasicType_toTerm _)]
+    have h_eq := Term.isBasicType_no_subst j N' h
+    have ihj := ih j hN
+    rw [h_eq] at ihj
+    exact ParRed.funcApp ihj h
 
 /-- Parallel reduction is preserved under substitution at 0. -/
 theorem subst {M M' N N' : Term} (hM : M ⇒ M') (hN : N ⇒ N') :

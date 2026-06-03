@@ -38,6 +38,14 @@ variable [STLCspec]
 
 /-! ## Term Definition -/
 
+/-- Type of all basic terms, i.e., fully reduced ground of a given type that contains no arrows. -/
+inductive BasicTerm : Ty → Type where
+  | pair : BasicTerm a → BasicTerm b → BasicTerm (Ty.pairTy a b)            -- Pair (M, N)
+  | inl  : BasicTerm a → BasicTerm (Ty.sum a b)                   -- Left injection inl M
+  | inr  : BasicTerm b → BasicTerm (Ty.sum a b)                   -- Right injection inr M
+  | unit : BasicTerm Ty.unit                          -- Unit value ()
+  | value : ∀ {t : BaseType}, BaseTypeValue t → BasicTerm (Ty.base t) -- Value of base type `t`
+
 /-- Lambda calculus terms with products, sums, and unit using de Bruijn indices -/
 inductive Term : Type where
   | var  : Nat → Term                    -- Variable (de Bruijn index)
@@ -50,8 +58,10 @@ inductive Term : Type where
   | inr  : Term → Term                   -- Right injection inr M
   | case : Term → Term → Term → Term     -- Case analysis: case M of inl → N₁ | inr → N₂
   | unit : Term                          -- Unit value ()
-  | value : ∀ {t : BaseTypes}, BaseTypeValue t → Term -- Value of base type `t`
-deriving Repr, DecidableEq
+  | value : ∀ {t : BaseType}, BaseTypeValue t → Term -- Value of base type `t`
+  | func : ∀ {t : Ty} {u : Ty} {ht : t.isArrowFree} {hu : u.isArrowFree},
+        (BasicTerm t → BasicTerm u) → Term  -- A basic function (hardcoded on base values)
+-- deriving Repr, DecidableEq
 
 namespace Term
 
@@ -81,6 +91,7 @@ def shift (d : Int) (c : Nat) : Term → Term
   | case M N₁ N₂ => case (shift d c M) (shift d (c + 1) N₁) (shift d (c + 1) N₂)
   | unit => unit
   | value v => value v
+  | @func _ _ _ ht hu f => @func _ _ _ ht hu f
 
 /-- Shorthand for shifting by 1 from cutoff 0 -/
 abbrev shift1 (M : Term) : Term := shift 1 0 M
@@ -105,6 +116,7 @@ def subst (j : Nat) (N : Term) : Term → Term
   | case M N₁ N₂ => case (subst j N M) (subst (j + 1) (shift1 N) N₁) (subst (j + 1) (shift1 N) N₂)
   | unit => unit
   | value v => value v
+  | @func _ _ _ ht hu f => @func _ _ _ ht hu f
 
 /-- Substitute for variable 0 -/
 abbrev subst0 (N : Term) (M : Term) : Term := subst 0 N M
@@ -157,6 +169,7 @@ theorem shift_zero (c : Nat) (M : Term) : shift 0 c M = M := by
     rw [ihM, ihN₁, ihN₂]
   | unit => rfl
   | value _ => rfl
+  | func _ => rfl
 
 /-- Shifting a variable below cutoff leaves it unchanged -/
 theorem shift_var_lt {n c : Nat} {d : Int} (h : n < c) :
@@ -216,6 +229,7 @@ theorem shift_shift (d₁ d₂ : Nat) (c : Nat) (M : Term) :
     rw [ihM c, ihN₁ (c + 1), ihN₂ (c + 1)]
   | unit => rfl
   | value v => rfl
+  | func f => rfl
 
 /-- Composing shifts at consecutive cutoffs -/
 theorem shift_shift_succ (c : Nat) (M : Term) :
@@ -260,6 +274,7 @@ theorem shift_shift_succ (c : Nat) (M : Term) :
     rw [ihM c, ihN₁ (c + 1), ihN₂ (c + 1)]
   | unit => rfl
   | value _ => rfl
+  | func _ => rfl
 
 /-- Composing shifts at offset cutoffs -/
 theorem shift_shift_offset (c b : Nat) (N : Term) :
@@ -308,6 +323,7 @@ theorem shift_shift_offset (c b : Nat) (N : Term) :
     rw [ihM c b, h_assoc, ihN₁ c (b + 1), ihN₂ c (b + 1)]
   | unit => rfl
   | value _ => rfl
+  | func _ => rfl
 
 /-- Shifts at different cutoffs commute -/
 theorem shift_shift_comm (d₁ d₂ : Nat) (c₁ c₂ : Nat) (M : Term) (h : c₁ ≤ c₂) :
@@ -362,6 +378,7 @@ theorem shift_shift_comm (d₁ d₂ : Nat) (c₁ c₂ : Nat) (M : Term) (h : c�
     rw [ihM c₁ c₂ h, ihN₁ (c₁ + 1) (c₂ + 1) h', heq, ihN₂ (c₁ + 1) (c₂ + 1) h', heq]
   | unit => rfl
   | value v => rfl
+  | func v => rfl
 
 /-! ## Key Substitution-Shift Interaction -/
 
@@ -408,6 +425,7 @@ theorem subst_shift_cancel (M : Term) (N : Term) (c : Nat) :
     rw [ihM, ihN₁, ihN₂]
   | unit => rfl
   | value v => rfl
+  | func v => rfl
 
 /-- Substituting for a shifted variable cancels out -/
 theorem subst_shift1 (M N : Term) : (shift 1 0 M)[N] = M :=
@@ -491,6 +509,7 @@ theorem shift_subst_at (M N : Term) (d : Nat) (c j : Nat) (hjc : j ≤ c) :
     · rw [ihN₂ (shift1 N) d (c + 1) (j + 1) hjc', h_comm]
   | unit => rfl
   | value v => rfl
+  | func v => rfl
 
 /-- Shift-substitution interaction lemma -/
 theorem shift_subst (M N : Term) (d : Nat) (c : Nat) :
@@ -636,6 +655,7 @@ theorem shift1_subst_gen (L N : Term) (j c : Nat) :
       exact ihN₂ N j (c + 1)
   | unit => rfl
   | value v => rfl
+  | func v => rfl
 
 /-- shift1 commutes with subst -/
 theorem shift1_subst (L N : Term) (j : Nat) :
@@ -781,6 +801,7 @@ theorem subst_subst_gen_full (M N L : Term) (j i : Nat) :
       exact ihN₂ N L j (i + 1)
   | unit => rfl
   | value v => rfl
+  | func v => rfl
 
 /-- Generalized substitution composition lemma.
     Derived from subst_subst_gen_full at i=0. -/
@@ -793,6 +814,90 @@ theorem subst_subst_gen (M N L : Term) (j : Nat) :
   have hz3 : shift (↑(0:Nat) + 1) 0 N = shift1 N := rfl
   simp only [hz1, hz2, hz3] at h
   exact h
+
+/-! ## BasicTerm Conversions -/
+
+/-- Predicate: a Term is structurally a BasicTerm of a given type -/
+def isBasicType : Ty → Term → Prop
+  | .unit,       Term.unit          => True
+  | .base t',    @Term.value _ tv _ => tv = t'
+  | .prod a b,   Term.pair M N      => isBasicType a M ∧ isBasicType b N
+  | .sum  a _,   Term.inl M         => isBasicType a M
+  | .sum  _ b,   Term.inr N         => isBasicType b N
+  | _,           _                  => False
+
+/-- Convert a Term to a BasicTerm, given a proof that it is one -/
+def toBasicTerm : (t : Ty) → (M : Term) → isBasicType t M → BasicTerm t
+  | .unit,     Term.unit,           _       => .unit
+  | .base _,   @Term.value _ _ v,   h       => h ▸ .value v
+  | .prod a b, Term.pair M N,       ⟨hM,hN⟩ => .pair (toBasicTerm a M hM) (toBasicTerm b N hN)
+  | .sum  a _, Term.inl M,          h       => .inl (toBasicTerm a M h)
+  | .sum  _ b, Term.inr N,          h       => .inr (toBasicTerm b N h)
+
+/-- Substitution is the identity on basic terms -/
+theorem isBasicType_no_subst (j : Nat) (N : Term) {t : Ty} {M : Term}
+    (h : isBasicType t M) : Term.subst j N M = M := by
+  induction t generalizing M with
+  | unit =>
+    cases M <;> simp_all [isBasicType]
+    simp [Term.subst]
+  | base t' =>
+    cases M <;> simp_all [isBasicType]
+    simp [Term.subst]
+  | prod a b iha ihb =>
+    cases M <;> simp_all [isBasicType]
+    case pair M₁ M₂ =>
+      obtain ⟨hM₁, hM₂⟩ := h
+      simp [Term.subst, iha hM₁, ihb hM₂]
+  | sum a b iha ihb =>
+    cases M <;> simp_all [isBasicType]
+    · case inl M' => simp [Term.subst, iha h]
+    · case inr N' => simp [Term.subst, ihb h]
+  | arr _ _ => cases M <;> simp_all [isBasicType]
+
+/-- Shifting is the identity on basic terms -/
+theorem isBasicType_no_shift (d : Int) (c : Nat) {t : Ty} {M : Term}
+    (h : isBasicType t M) : Term.shift d c M = M := by
+  induction t generalizing M c with
+  | unit =>
+    cases M <;> simp_all [isBasicType]
+    simp [Term.shift]
+  | base t' =>
+    cases M <;> simp_all [isBasicType]
+    simp [Term.shift]
+  | prod a b iha ihb =>
+    cases M <;> simp_all [isBasicType]
+    case pair M₁ M₂ =>
+      obtain ⟨hM₁, hM₂⟩ := h
+      simp [Term.shift, iha c hM₁, ihb c hM₂]
+  | sum a b iha ihb =>
+    cases M <;> simp_all [isBasicType]
+    · case inl M' => simp [Term.shift, iha c h]
+    · case inr N' => simp [Term.shift, ihb c h]
+  | arr _ _ => cases M <;> simp_all [isBasicType]
+
+end Term
+
+/-- Embed a BasicTerm into a Term -/
+def BasicTerm.toTerm : BasicTerm t → Term
+  | .pair a b => Term.pair a.toTerm b.toTerm
+  | .inl a    => Term.inl a.toTerm
+  | .inr b    => Term.inr b.toTerm
+  | .unit     => Term.unit
+  | .value v  => Term.value v
+
+namespace Term
+
+/-- BasicTerm.toTerm produces a basic term -/
+theorem isBasicType_toTerm {t : Ty} (bt : BasicTerm t) : isBasicType t (BasicTerm.toTerm bt) := by
+  induction bt with
+  | unit => simp [BasicTerm.toTerm, isBasicType]
+  | value v => simp [BasicTerm.toTerm, isBasicType]
+  | pair a b iha ihb =>
+    show isBasicType (Ty.prod _ _) _
+    exact ⟨iha, ihb⟩
+  | inl a iha => exact iha
+  | inr b ihb => exact ihb
 
 end Term
 

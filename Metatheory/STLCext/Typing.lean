@@ -91,6 +91,11 @@ inductive HasType : Context → Term → Ty → Prop where
   /-- Unit introduction -/
   | unit : ∀ {Γ : Context},
       HasType Γ Term.unit Ty.unit
+  /-- Value of base type -/
+  | value (v : BaseTypeValue t) : HasType Γ  (Term.value v) (Ty.base t)
+  /-- Function on base types -/
+  | func {t u ht hu} f :
+    HasType Γ (@Term.func _ t u ht hu f) (Ty.arr t u)
 
 /-- Notation for typing judgment -/
 scoped notation:50 Γ " ⊢ " M " : " A => HasType Γ M A
@@ -186,6 +191,8 @@ theorem weakening : ∀ {Γ Γ' : Context} {M : Term} {A : Ty},
       | zero => exact h_get
       | succ n' => exact h_pres n' D h_get
   | unit => exact HasType.unit
+  | value v => exact HasType.value v
+  | func f => exact HasType.func f
 
 /-! ## Shift Typing -/
 
@@ -256,6 +263,8 @@ theorem typing_shift_at_aux {Γ Γ₁ Γ₂ : Context} {M : Term} {A B : Ty}
       simp only [List.cons_append, List.length_cons] at ih₂
       exact ih₂
   | unit => simp only [Term.shift]; exact HasType.unit
+  | value v => simp only [Term.shift]; exact HasType.value v
+  | func f => simp only [Term.shift]; exact HasType.func f
 
 /-- Shifting preserves typing -/
 theorem typing_shift {Γ : Context} {N : Term} {A B : Ty}
@@ -413,6 +422,14 @@ theorem substitution_typing_gen_aux {Γ : Context} {M : Term} {B : Ty}
     intro Γ₁ Γ₂ N A j hΓ hj hN
     simp only [Term.subst]
     exact HasType.unit
+  | value v =>
+    intro Γ₁ Γ₂ N A j hΓ hj hN
+    simp only [Term.subst]
+    exact HasType.value v
+  | func f =>
+    intro Γ₁ Γ₂ N A j hΓ hj hN
+    simp only [Term.subst]
+    exact HasType.func f
 
 /-- Substitution typing (main lemma) -/
 theorem substitution_typing {Γ : Context} {M N : Term} {A B : Ty}
@@ -425,6 +442,18 @@ theorem substitution_typing {Γ : Context} {M N : Term} {A B : Ty}
   have h := @substitution_typing_gen_aux _ ([] ++ [A] ++ Γ) M B hM' [] Γ N A 0 (by simp) (by simp) hN'
   simp at h
   exact h
+
+/-! ## BasicTerm Typing -/
+
+/-- BasicTerm.toTerm is well-typed -/
+theorem typing_basicTerm {t : Ty} (bt : BasicTerm t) (Γ : Context) :
+    HasType Γ (BasicTerm.toTerm bt) t := by
+  induction bt with
+  | unit => exact HasType.unit
+  | value v => exact HasType.value v
+  | pair a b iha ihb => exact HasType.pair iha ihb
+  | inl a iha => exact HasType.inl iha
+  | inr b ihb => exact HasType.inr ihb
 
 /-! ## Subject Reduction -/
 
@@ -508,6 +537,11 @@ theorem subject_reduction {Γ : Context} {M N : Term} {A : Ty}
     cases htype with
     | case hM hL hR =>
       exact HasType.case hM hL (ih hR)
+  | funcApp f N h =>
+    cases htype with
+    | @app _ _ _ B _ hM hN =>
+      cases hM with
+      | func => exact typing_basicTerm _ _
 
 /-- Subject reduction for multi-step reduction -/
 theorem subject_reduction_multi {Γ : Context} {M N : Term} {A : Ty}
@@ -526,15 +560,19 @@ def IsValue : Term → Prop
   | Term.inl M => IsValue M
   | Term.inr M => IsValue M
   | Term.unit => True
+  | Term.value _ => True
+  | Term.func _ => True
   | _ => False
 
 /-- Canonical forms for function types -/
 theorem canonical_forms_arr {M : Term} {A B : Ty}
     (htype : [] ⊢ M : A ⇒ B) (hval : IsValue M) :
-    ∃ M', M = Term.lam M' := by
+    (∃ M', M = Term.lam M') ∨
+    (∃ (t u : Ty) (ht : t.isArrowFree) (hu : u.isArrowFree) (f : BasicTerm t → BasicTerm u),
+      M = @Term.func _ t u ht hu f) := by
   cases M with
   | var n => cases htype with | var h => cases h
-  | lam M' => exact ⟨M', rfl⟩
+  | lam M' => exact Or.inl ⟨M', rfl⟩
   | app _ _ => cases hval
   | pair _ _ => cases htype
   | fst _ => cases hval
@@ -543,7 +581,8 @@ theorem canonical_forms_arr {M : Term} {A B : Ty}
   | inr _ => cases htype
   | case _ _ _ => cases hval
   | unit => cases htype
-  | value v => cases htype
+  | value _ => cases htype
+  | @func t u ht hu f => exact Or.inr ⟨t, u, ht, hu, f, rfl⟩
 
 /-- Canonical forms for product types -/
 theorem canonical_forms_prod {M : Term} {A B : Ty}
@@ -559,8 +598,7 @@ theorem canonical_forms_prod {M : Term} {A B : Ty}
   | inl _ => cases htype
   | inr _ => cases htype
   | case _ _ _ => cases hval
-  | unit => cases htype
-  | value v => cases htype
+  | _ => cases htype
 
 /-- Canonical forms for sum types -/
 theorem canonical_forms_sum {M : Term} {A B : Ty}
@@ -576,8 +614,56 @@ theorem canonical_forms_sum {M : Term} {A B : Ty}
   | inl M' => exact Or.inl ⟨M', rfl⟩
   | inr M' => exact Or.inr ⟨M', rfl⟩
   | case _ _ _ => cases hval
-  | unit => cases htype
-  | value v => cases htype
+  | _ => cases htype
+
+/-- A closed value of an arrow-free type is a basic term -/
+theorem value_arrowFree_isBasicType {M : Term} {t : Ty}
+    (htype : [] ⊢ M : t) (hval : IsValue M) (haf : t.isArrowFree = true) :
+    Term.isBasicType t M := by
+  induction t generalizing M with
+  | base t' =>
+    match M, htype, hval with
+    | Term.value v, htype, _ => cases htype; simp [Term.isBasicType]
+  | unit =>
+    match M, htype, hval with
+    | Term.unit, _, _ => simp [Term.isBasicType]
+    | Term.pair _ _, htype, _ => cases htype
+    | Term.inl _, htype, _ => cases htype
+    | Term.inr _, htype, _ => cases htype
+    | Term.value _, htype, _ => cases htype
+    | Term.func _, htype, _ => cases htype
+    | Term.lam _, htype, _ => cases htype
+  | prod a b iha ihb =>
+    simp [Ty.isArrowFree] at haf
+    obtain ⟨haf_a, haf_b⟩ := haf
+    match M, htype, hval with
+    | Term.pair M₁ M₂, htype, hval =>
+      obtain ⟨hval_M₁, hval_M₂⟩ := hval
+      cases htype with
+      | pair hM₁ hM₂ =>
+        exact ⟨iha hM₁ hval_M₁ haf_a, ihb hM₂ hval_M₂ haf_b⟩
+    | Term.unit, htype, _ => cases htype
+    | Term.inl _, htype, _ => cases htype
+    | Term.inr _, htype, _ => cases htype
+    | Term.value _, htype, _ => cases htype
+    | Term.func _, htype, _ => cases htype
+    | Term.lam _, htype, _ => cases htype
+  | sum a b iha ihb =>
+    simp [Ty.isArrowFree] at haf
+    obtain ⟨haf_a, haf_b⟩ := haf
+    match M, htype, hval with
+    | Term.inl M', htype, hval =>
+      cases htype with
+      | inl hM => exact iha hM hval haf_a
+    | Term.inr N', htype, hval =>
+      cases htype with
+      | inr hN => exact ihb hN hval haf_b
+    | Term.unit, htype, _ => cases htype
+    | Term.pair _ _, htype, _ => cases htype
+    | Term.value _, htype, _ => cases htype
+    | Term.func _, htype, _ => cases htype
+    | Term.lam _, htype, _ => cases htype
+  | arr _ _ => simp [Ty.isArrowFree] at haf
 
 /-- Progress: A closed well-typed term is either a value or can step -/
 theorem progress {M : Term} {A : Ty}
@@ -596,10 +682,32 @@ theorem progress {M : Term} {A : Ty}
       have ih : IsValue M' ∨ ∃ N, Step M' N := progress hM'
       cases ih with
       | inl hval =>
-        obtain ⟨M'', hM'_eq⟩ := canonical_forms_arr hM' hval
-        right
-        rw [hM'_eq]
-        exact ⟨Term.subst0 N' M'', Step.beta M'' N'⟩
+        have hcf := canonical_forms_arr hM' hval
+        cases hcf with
+        | inl hl =>
+          obtain ⟨M'', hM'_eq⟩ := hl
+          right
+          rw [hM'_eq]
+          exact ⟨Term.subst0 N' M'', Step.beta M'' N'⟩
+        | inr hr =>
+          obtain ⟨t, u, ht, hu, f, hM'_eq⟩ := hr
+          have ih_N : IsValue N' ∨ ∃ N, Step N' N := progress hN'
+          cases ih_N with
+          | inl hval_N =>
+            -- N' has type B = t (from func's type matching A ⇒ B), so type t which is arrow-free
+            -- Subst hM'_eq and use HasType inversion to get B = t
+            subst hM'_eq
+            cases hM' with
+            | func =>
+              right
+              have hbasic : Term.isBasicType B N' :=
+                value_arrowFree_isBasicType hN' hval_N ht
+              exact ⟨_, Step.funcApp f N' hbasic⟩
+          | inr hstep_N =>
+            obtain ⟨N'', hstep'⟩ := hstep_N
+            right
+            rw [hM'_eq]
+            exact ⟨Term.app (@Term.func _ t u ht hu f) N'', Step.appR hstep'⟩
       | inr hstep =>
         obtain ⟨M'', hstep'⟩ := hstep
         right
@@ -698,6 +806,12 @@ theorem progress {M : Term} {A : Ty}
         right
         exact ⟨Term.case M'' N₁ N₂, Step.caseS hstep'⟩
   | Term.unit =>
+    left
+    exact trivial
+  | Term.value _ =>
+    left
+    exact trivial
+  | Term.func _ =>
     left
     exact trivial
 
