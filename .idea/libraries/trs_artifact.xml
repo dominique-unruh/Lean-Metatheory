@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="trs-artifact">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/paper/trs-artifact.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
