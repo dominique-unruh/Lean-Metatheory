@@ -111,6 +111,7 @@ theorem complete_isBasicType (hb : isBasicType t N) : complete N = N := by
       simp [complete, ihb hb]
     | _ => simp_all [isBasicType]
 
+-- TODO move to Parallel.lean
 theorem par_isBasicType (h : M ⇒ N) (hb : isBasicType t M) : M = N := by
   induction t generalizing M N with
   | unit =>
@@ -143,6 +144,7 @@ theorem par_isBasicType (h : M ⇒ N) (hb : isBasicType t M) : M = N := by
       | inr h₂ => rw [ihb h₂ hb]
     | _ => simp_all [isBasicType]
 
+-- TODO remove
 theorem par_preserves_isBasicType (h : M ⇒ N) (h' : isBasicType t M) : isBasicType t N := by
     let eq : M = N := par_isBasicType h h'
     simp [← eq, h']

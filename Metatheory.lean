@@ -94,6 +94,7 @@ import Metatheory.STLCext.Complete
 import Metatheory.STLCext.Confluence
 import Metatheory.STLCext.Normalization
 import Metatheory.STLCext.Parallel
+import Metatheory.STLCext.ReduceFully
 import Metatheory.STLCext.Reduction
 import Metatheory.STLCext.Terms
 import Metatheory.STLCext.Types
