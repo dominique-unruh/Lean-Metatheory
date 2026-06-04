@@ -25,10 +25,10 @@ class STLCspec where
   baseTypeValue : baseTypes → Type _
   -- basicFunctions : Type _ := Empty
   -- basicFunctionType : basicFunctions → (baseTypes × baseTypes)
-  [decEqBase : DecidableEq baseTypes]
-  [reprBase : Repr baseTypes]
-  [decEqValues : ∀ t : baseTypes, DecidableEq (baseTypeValue t)]
-  [reprValues : ∀ t : baseTypes, Repr (baseTypeValue t)]
+  -- [decEqBase : DecidableEq baseTypes]
+  -- [reprBase : Repr baseTypes]
+  -- [decEqValues : ∀ t : baseTypes, DecidableEq (baseTypeValue t)]
+  -- [reprValues : ∀ t : baseTypes, Repr (baseTypeValue t)]
 
 @[reducible]
 def BaseType [inst : STLCspec] := inst.baseTypes
@@ -37,10 +37,10 @@ def BaseTypeValue [inst : STLCspec] : BaseType → Type _ := inst.baseTypeValue
 -- @[reducible]
 -- def BasicFunctionTypes [inst : STLCspec] := inst.basicFunctionType
 
-instance [s : STLCspec] : DecidableEq BaseType := s.decEqBase
-instance [s : STLCspec] : Repr BaseType := s.reprBase
-instance [s : STLCspec] (t: BaseType) : DecidableEq (BaseTypeValue t) := s.decEqValues t
-instance [s : STLCspec] (t: BaseType) : Repr (BaseTypeValue t) := s.reprValues t
+-- instance [s : STLCspec] : DecidableEq BaseType := s.decEqBase
+-- instance [s : STLCspec] : Repr BaseType := s.reprBase
+-- instance [s : STLCspec] (t: BaseType) : DecidableEq (BaseTypeValue t) := s.decEqValues t
+-- instance [s : STLCspec] (t: BaseType) : Repr (BaseTypeValue t) := s.reprValues t
 -- instance [s : STLCspec] : DecidableEq BasicFunctions := sorry
 -- instance [s : STLCspec] : Repr BasicFunctions := sorry
 
@@ -56,9 +56,7 @@ inductive Ty where
   | prod : Ty → Ty → Ty    -- Product type A × B
   | sum  : Ty → Ty → Ty    -- Sum type A + B
   | unit : Ty              -- Unit type (terminal object)
-deriving DecidableEq, Repr
-
--- TODO define a "subset" of Ty, with all constructors except `arr`
+-- deriving DecidableEq, Repr
 
 /-- Notation for function types -/
 scoped infixr:70 " ⇒ " => Ty.arr
@@ -134,8 +132,8 @@ local instance exampleSpec : STLCspec where
   baseTypeValue t := if t then Bool else Nat
   -- basicFunctions := Empty
   -- basicFunctionType := nofun
-  decEqValues t := match t with | true => inferInstanceAs (DecidableEq Bool) | false => inferInstanceAs (DecidableEq Nat)
-  reprValues t := match t with | true => inferInstanceAs (Repr Bool) | false => inferInstanceAs (Repr Nat)
+  -- decEqValues t := match t with | true => inferInstanceAs (DecidableEq Bool) | false => inferInstanceAs (DecidableEq Nat)
+  -- reprValues t := match t with | true => inferInstanceAs (Repr Bool) | false => inferInstanceAs (Repr Nat)
 
 /-- Base type Bool -/
 abbrev TBool : Ty := base true
