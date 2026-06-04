@@ -564,6 +564,8 @@ def IsValue : Term → Prop
   | Term.func _ => True
   | _ => False
 
+instance : Decidable (IsValue t) := sorry
+
 /-- Canonical forms for function types -/
 theorem canonical_forms_arr {M : Term} {A B : Ty}
     (htype : [] ⊢ M : A ⇒ B) (hval : IsValue M) :

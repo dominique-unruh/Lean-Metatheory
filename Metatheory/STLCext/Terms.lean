@@ -818,6 +818,7 @@ theorem subst_subst_gen (M N L : Term) (j : Nat) :
 /-! ## BasicTerm Conversions -/
 
 /-- Predicate: a Term is structurally a BasicTerm of a given type -/
+-- TODO rename: isBasicTerm
 def isBasicType : Ty → Term → Prop
   | .unit,       Term.unit          => True
   | .base t',    @Term.value _ tv _ => tv = t'
@@ -825,6 +826,15 @@ def isBasicType : Ty → Term → Prop
   | .sum  a _,   Term.inl M         => isBasicType a M
   | .sum  _ b,   Term.inr N         => isBasicType b N
   | _,           _                  => False
+
+/-- Same as isBasicType for well-typed terms. Computable. -/
+def isBasicTerm' : Term → Bool
+  | Term.unit         => true
+  | Term.value _ => true
+  | Term.pair M N     => isBasicTerm' M ∧ isBasicTerm' N
+  | Term.inl M         => isBasicTerm' M
+  | Term.inr N         => isBasicTerm' N
+  | _                  => false
 
 /-- Convert a Term to a BasicTerm, given a proof that it is one -/
 def toBasicTerm : (t : Ty) → (M : Term) → isBasicType t M → BasicTerm t
