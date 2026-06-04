@@ -20,9 +20,9 @@ Simple types now include:
 namespace Metatheory.STLCext
 
 -- TODO Document everything related to STLCspec
-class STLCspec where
-  baseTypes : Type _
-  baseTypeValue : baseTypes → Type _
+class STLCspec : Type (max u v + 1) where
+  baseTypes : Type u
+  baseTypeValue : baseTypes → Type v
   -- basicFunctions : Type _ := Empty
   -- basicFunctionType : basicFunctions → (baseTypes × baseTypes)
   -- [decEqBase : DecidableEq baseTypes]
