@@ -564,7 +564,25 @@ def IsValue : Term → Prop
   | Term.func _ => True
   | _ => False
 
-instance : Decidable (IsValue t) := sorry
+private def decidableIsValue : (t : Term) → Decidable (IsValue t)
+  | Term.var _ => isFalse id
+  | Term.lam _ => isTrue trivial
+  | Term.app _ _ => isFalse id
+  | Term.pair M N =>
+    match decidableIsValue M, decidableIsValue N with
+    | isTrue h₁, isTrue h₂ => isTrue ⟨h₁, h₂⟩
+    | isFalse h₁, _ => isFalse (fun h => h₁ h.1)
+    | _, isFalse h₂ => isFalse (fun h => h₂ h.2)
+  | Term.fst _ => isFalse id
+  | Term.snd _ => isFalse id
+  | Term.inl M => decidableIsValue M
+  | Term.inr M => decidableIsValue M
+  | Term.case _ _ _ => isFalse id
+  | Term.unit => isTrue trivial
+  | Term.value _ => isTrue trivial
+  | Term.func _ => isTrue trivial
+
+instance : Decidable (IsValue t) := decidableIsValue t
 
 /-- Canonical forms for function types -/
 theorem canonical_forms_arr {M : Term} {A B : Ty}
