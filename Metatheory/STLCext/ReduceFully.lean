@@ -22,31 +22,28 @@ open Term
 open Rewriting (IsNormalForm Star)
 
 /-- A term is in deep normal form: fully reduced including under binders. -/
--- TODO move where appropriate
-inductive IsDeepValue : Term → Prop where
-  | var   : IsDeepValue (var n)
-  | unit  : IsDeepValue unit
-  | value : IsDeepValue (value v)
-  | func  : IsDeepValue (@func _ t u ht hu f)
-  | lam   : IsDeepValue M → IsDeepValue (lam M)
-  | pair  : IsDeepValue M → IsDeepValue N → IsDeepValue (pair M N)
-  | inl   : IsDeepValue M → IsDeepValue (inl M)
-  | inr   : IsDeepValue M → IsDeepValue (inr M)
-  | fst   : IsDeepValue M → (∀ A B, M ≠ pair A B) → IsDeepValue (fst M)
-  | snd   : IsDeepValue M → (∀ A B, M ≠ pair A B) → IsDeepValue (snd M)
-  | app : IsDeepValue M → IsDeepValue N →
+inductive IsNormalForm' : Term → Prop where
+  | var   : IsNormalForm' (var n)
+  | unit  : IsNormalForm' unit
+  | value : IsNormalForm' (value v)
+  | func  : IsNormalForm' (@func _ t u ht hu f)
+  | lam   : IsNormalForm' M → IsNormalForm' (lam M)
+  | pair  : IsNormalForm' M → IsNormalForm' N → IsNormalForm' (pair M N)
+  | inl   : IsNormalForm' M → IsNormalForm' (inl M)
+  | inr   : IsNormalForm' M → IsNormalForm' (inr M)
+  | fst   : IsNormalForm' M → (∀ A B, M ≠ pair A B) → IsNormalForm' (fst M)
+  | snd   : IsNormalForm' M → (∀ A B, M ≠ pair A B) → IsNormalForm' (snd M)
+  | app   : IsNormalForm' M → IsNormalForm' N →
             (∀ B, M ≠ lam B) →
             (∀ (t u : Ty) (ht : t.isArrowFree) (hu : u.isArrowFree)
                (f : BasicTerm t → BasicTerm u), Term.isBasicType t N → M ≠ @func _ t u ht hu f) →
-            IsDeepValue (app M N)
-  | case  : IsDeepValue M → IsDeepValue N₁ → IsDeepValue N₂ →
+            IsNormalForm' (app M N)
+  | case  : IsNormalForm' M → IsNormalForm' N₁ → IsNormalForm' N₂ →
             (∀ V, M ≠ inl V) → (∀ V, M ≠ inr V) →
-            IsDeepValue (case M N₁ N₂)
+            IsNormalForm' (case M N₁ N₂)
 
-#check IsValue
--- TODO move where appropriate
-theorem isDeepValue_iff_isNormalForm (M : Term) :
-    IsDeepValue M ↔ IsNormalForm Step M := by
+theorem isNormalForm'_iff_isNormalForm (M : Term) :
+    IsNormalForm' M ↔ IsNormalForm Step M := by
   constructor
   · intro h
     induction h with
@@ -119,9 +116,71 @@ theorem isDeepValue_iff_isNormalForm (M : Term) :
                   (fun V heq => by subst heq; exact h _ (Step.caseInl V N₁ N₂))
                   (fun V heq => by subst heq; exact h _ (Step.caseInr V N₁ N₂))
 
+theorem isNormalForm'_implies_isValue {M : Term} {A : Ty}
+    (ht : HasType [] M A) (hn : IsNormalForm' M) : IsValue M := by
+  induction M generalizing A with
+  | var _ => cases ht with | var h => simp at h
+  | unit => exact trivial
+  | value => exact trivial
+  | func => exact trivial
+  | lam _ _ => exact trivial
+  | pair M N ihM ihN =>
+    cases hn with
+    | pair hnM hnN =>
+      cases ht with
+      | pair htM htN => exact ⟨ihM htM hnM, ihN htN hnN⟩
+  | inl M ih =>
+    cases hn with
+    | inl hnM =>
+      cases ht with
+      | inl htM => exact ih htM hnM
+  | inr M ih =>
+    cases hn with
+    | inr hnN =>
+      cases ht with
+      | inr htN => exact ih htN hnN
+  | fst M ih =>
+    cases hn with
+    | fst hnM hnotpair =>
+      cases ht with
+      | fst htM =>
+        have hvalM := ih htM hnM
+        obtain ⟨M₁, M₂, heq⟩ := canonical_forms_prod htM hvalM
+        exact absurd heq (hnotpair M₁ M₂)
+  | snd M ih =>
+    cases hn with
+    | snd hnM hnotpair =>
+      cases ht with
+      | snd htM =>
+        have hvalM := ih htM hnM
+        obtain ⟨M₁, M₂, heq⟩ := canonical_forms_prod htM hvalM
+        exact absurd heq (hnotpair M₁ M₂)
+  | app M N ihM ihN =>
+    cases hn with
+    | app hnM hnN hnolam hnofunc =>
+      cases ht with
+      | app htM htN =>
+        have hvalM := ihM htM hnM
+        have hvalN := ihN htN hnN
+        rcases canonical_forms_arr htM hvalM with ⟨M', rfl⟩ | ⟨t, u, haf, hu, f, rfl⟩
+        · exact absurd rfl (hnolam M')
+        · have hbasic : Term.isBasicType t N := by
+            have htN' : HasType [] N t := by have hf := htM; cases hf; exact htN
+            exact value_arrowFree_isBasicType htN' hvalN haf
+          exact absurd rfl (hnofunc t u haf hu f hbasic)
+  | case M N₁ N₂ ihM _ _ =>
+    cases hn with
+    | case hnM _ _ hnoinl hnoinr =>
+      cases ht with
+      | case htM _ _ =>
+        have hvalM := ihM htM hnM
+        rcases canonical_forms_sum htM hvalM with ⟨V, rfl⟩ | ⟨V, rfl⟩
+        · exact absurd rfl (hnoinl V)
+        · exact absurd rfl (hnoinr V)
+
 def reduction_step (term : Term) (ht : HasType ctxt term ty) (_: ¬ IsValue term) : Term := match term with
   | app (lam M) N =>
-     have htN : HasType sorry N sorry := sorry
+     have htN : HasType sorry N sorry := by
      if h : ¬ IsValue N then
        app (lam M) (reduction_step N htN h)
      else
@@ -187,6 +246,68 @@ def reduction_step (term : Term) (ht : HasType ctxt term ty) (_: ¬ IsValue term
        have h : ¬ IsValue O := sorry
        case M N (reduction_step O htO h)
   | _ => False.elim sorry
+
+def reduction_step_test0 (term : Term) (ht : ∃ ctxt ty, HasType ctxt term ty) (_: ¬ IsValue term) : Term := match term, ht with
+    -- | app (lam M) N, C, T, @HasType.app _ _ => Term.unit
+    | pair M N => Term.unit
+    | _ => Term.unit
+
+
+def reduction_step_test (term : Term) (ht : HasType ctxt term ty) (_: ¬ IsValue term) : Term := match term, ht, ctxt with
+   | app (lam M) N, _, _ =>
+      let htN := match ht with | HasType.app _ htN => htN
+      if h : ¬ IsValue N then
+        app (lam M) (reduction_step N htN h)
+      else
+        M[N]
+   | app (@Term.func _ t u ht hu f) N,   HasType.app _ htN =>
+      if h : ¬ IsValue N then
+        app (@Term.func _ t u ht hu f) (reduction_step N htN h)
+      else if isBasicTerm' N then
+        let h : isBasicType t N := sorry
+        BasicTerm.toTerm (f (Term.toBasicTerm t N h))
+      else
+        False.elim sorry
+   | app M N,   HasType.app htM htN =>
+      if h : ¬ IsValue M then
+        app (reduction_step M htM h) N
+      else
+        have h : ¬ IsValue N := sorry
+        app M (reduction_step N htN h)
+   | fst (pair M N), _ => M -- shortcutting
+   | snd (pair M N), _ => N -- shortcutting
+   | case (inl V) N₁ N₂, _ => N₁[V] -- shortcutting
+   | case (inr V) N₁ N₂, _ => N₂[V] -- shortcutting
+   | lam M,   HasType.lam htM =>
+      have h : ¬ IsValue M := sorry
+      lam (reduction_step M htM h)
+   | pair M N,   HasType.pair htM htN =>
+      if h : ¬ IsValue M then
+        pair (reduction_step M htM h) N
+      else
+        have h : ¬ IsValue N := sorry
+        pair M (reduction_step N htN h)
+   | fst M,   HasType.fst htM =>
+      have h : ¬ IsValue M := sorry
+      fst (reduction_step M htM h)
+   | snd M,   HasType.snd htM =>
+      have h : ¬ IsValue M := sorry
+      snd (reduction_step M htM h)
+   | inl M,   HasType.inl htM =>
+      have h : ¬ IsValue M := sorry
+      inl (reduction_step M htM h)
+   | inr M,   HasType.inr htM =>
+      have h : ¬ IsValue M := sorry
+      inr (reduction_step M htM h)
+   | case M N O,  HasType.case htM htN htO, _ =>
+      if h : ¬ IsValue M then
+        case (reduction_step M htM h) N O
+      else if h : ¬ IsValue N then
+        case M (reduction_step N htN h) O
+      else
+        have h : ¬ IsValue O := sorry
+        case M N (reduction_step O htO h)
+   | _, _, _ => False.elim sorry
 
 theorem reduction_step_preservation (term : Term) (ht : HasType ctxt term ty) (red : ¬ IsValue term) :
     HasType ctxt (reduction_step term ht red) ty := sorry
