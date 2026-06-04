@@ -16,7 +16,7 @@ as a function `reduce_fully : HasType Γ M A → Term`.
 namespace Metatheory.STLCext
 
 section Spec
-variable [STLCspec]
+variable [STLCspec.{_}]
 
 open Term
 open Rewriting (IsNormalForm Star)

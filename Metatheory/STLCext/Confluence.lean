@@ -18,7 +18,7 @@ using parallel reduction and the diamond property.
 namespace Metatheory.STLCext
 
 section Spec
-variable [STLCspec]
+variable [STLCspec.{_}]
 
 open Term
 open Rewriting (Diamond Confluent SemiConfluent Joinable Star)

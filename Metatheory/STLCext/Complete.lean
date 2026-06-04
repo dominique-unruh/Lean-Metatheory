@@ -21,7 +21,7 @@ This yields diamond: N₁ ⇒ complete M and N₂ ⇒ complete M.
 namespace Metatheory.STLCext
 
 section Spec
-variable [STLCspec]
+variable [STLCspec.{_}]
 
 open Term
 

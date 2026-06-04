@@ -37,7 +37,7 @@ import Metatheory.STLCext.Reduction
 namespace Metatheory.STLCext
 
 section Spec
-variable [spec: STLCspec]
+variable [spec: STLCspec.{_}]
 
 /-! ## Typing Contexts -/
 
@@ -129,12 +129,12 @@ def Context.extend (Γ : Context) (A : Ty) : Context := A :: Γ
 
 omit spec in
 /-- Helper lemma for get? on appended lists -/
-theorem get?_append_of_lt {α : Type} (l₁ l₂ : List α) (n : Nat) (h : n < l₁.length) :
+theorem get?_append_of_lt {α : Type u} (l₁ l₂ : List α) (n : Nat) (h : n < l₁.length) :
     (l₁ ++ l₂)[n]? = l₁[n]? := by
   simp only [List.getElem?_append_left h]
 
 omit spec in
-theorem get?_append_of_ge {α : Type} (l₁ l₂ : List α) (n : Nat) (h : n ≥ l₁.length) :
+theorem get?_append_of_ge {α : Type u} (l₁ l₂ : List α) (n : Nat) (h : n ≥ l₁.length) :
     (l₁ ++ l₂)[n]? = l₂[n - l₁.length]? := by
   simp only [List.getElem?_append_right h]
 

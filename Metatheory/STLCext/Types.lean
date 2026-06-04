@@ -47,7 +47,7 @@ def BaseTypeValue [inst : STLCspec] : BaseType → Type _ := inst.baseTypeValue
 /-! ## Simple Types with Products and Sums -/
 
 section Spec
-variable [spec: STLCspec]
+variable [spec: STLCspec.{_}]
 
 /-- Simple types: base types, function types, products, sums, and unit -/
 inductive Ty where

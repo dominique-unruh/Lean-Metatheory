@@ -27,7 +27,7 @@ import Metatheory.Rewriting.Basic
 namespace Metatheory.STLCext
 
 section Spec
-variable [spec: STLCspec]
+variable [spec: STLCspec.{_}]
 
 /-! ## Strong Normalization Definition -/
 

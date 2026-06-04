@@ -27,7 +27,7 @@ import Metatheory.STLCext.Terms
 namespace Metatheory.STLCext
 
 section Spec
-variable [STLCspec]
+variable [STLCspec.{_}]
 
 open Term
 

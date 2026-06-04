@@ -34,12 +34,12 @@ import Metatheory.STLCext.Types
 namespace Metatheory.STLCext
 
 section Spec
-variable [STLCspec]
+variable [STLCspec.{_}]
 
 /-! ## Term Definition -/
 
 /-- Type of all basic terms, i.e., fully reduced ground of a given type that contains no arrows. -/
-inductive BasicTerm : Ty → Type where
+inductive BasicTerm : Ty → Type _ where
   | pair : BasicTerm a → BasicTerm b → BasicTerm (Ty.pairTy a b)            -- Pair (M, N)
   | inl  : BasicTerm a → BasicTerm (Ty.sum a b)                   -- Left injection inl M
   | inr  : BasicTerm b → BasicTerm (Ty.sum a b)                   -- Right injection inr M
@@ -47,7 +47,7 @@ inductive BasicTerm : Ty → Type where
   | value : ∀ {t : BaseType}, BaseTypeValue t → BasicTerm (Ty.base t) -- Value of base type `t`
 
 /-- Lambda calculus terms with products, sums, and unit using de Bruijn indices -/
-inductive Term : Type where
+inductive Term : Type _ where
   | var  : Nat → Term                    -- Variable (de Bruijn index)
   | lam  : Term → Term                   -- Lambda abstraction λ.M
   | app  : Term → Term → Term            -- Application M N

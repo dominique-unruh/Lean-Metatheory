@@ -22,7 +22,7 @@ Parallel reduction contracts multiple redexes simultaneously:
 namespace Metatheory.STLCext
 
 section Spec
-variable [STLCspec]
+variable [STLCspec.{_}]
 
 open Term
 
