@@ -182,23 +182,25 @@ def HasAnyType M := ∃ Γ A, HasType Γ M A
 
 def reduction_step (term : Term) (ht : HasAnyType term) (_: ¬ IsValue term) : Term := match term with
   | app (lam M) N =>
-     have htN : HasAnyType N := sorry
+     have htN : HasAnyType N := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | app _ htN => exact ⟨_, _, htN⟩
      if h : ¬ IsValue N then
        app (lam M) (reduction_step N htN h)
      else
        M[N]
   | app (@Term.func _ t u haf hu f) N =>
-     have htN : HasAnyType N := sorry
+     have htN : HasAnyType N := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | app _ htN => exact ⟨_, _, htN⟩
      if h : ¬ IsValue N then
        app (@Term.func _ t u haf hu f) (reduction_step N htN h)
-     else if isBasicTerm' N then
-       let h : isBasicType t N := sorry
-       BasicTerm.toTerm (f (Term.toBasicTerm t N h))
      else
-       False.elim sorry
+       have hval_N : IsValue N := Classical.not_not.mp h
+       have hbasic : isBasicType t N := by
+         obtain ⟨Γ, A, ht'⟩ := ht
+         cases ht' with | app htFunc htN =>
+         cases htFunc with | func => exact value_arrowFree_isBasicType htN hval_N haf
+       BasicTerm.toTerm (f (Term.toBasicTerm t N hbasic))
   | app M N =>
-     have htM : HasAnyType M  := sorry
-     have htN : HasAnyType N  := sorry
+     have htM : HasAnyType M := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | app htM _ => exact ⟨_, _, htM⟩
+     have htN : HasAnyType N := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | app _ htN => exact ⟨_, _, htN⟩
      if h : ¬ IsValue M then
        app (reduction_step M htM h) N
      else
@@ -208,38 +210,33 @@ def reduction_step (term : Term) (ht : HasAnyType term) (_: ¬ IsValue term) : T
   | snd (pair M N) => N -- shortcutting
   | case (inl V) N₁ N₂ => N₁[V] -- shortcutting
   | case (inr V) N₁ N₂ => N₂[V] -- shortcutting
-  | lam M =>
-     have htM : HasAnyType M := sorry
-     have h : ¬ IsValue M := sorry
-     lam (reduction_step M htM h)
+  | lam M => False.elim (by simp [IsValue] at *)
   | pair M N =>
-     have htM : HasAnyType M := sorry
-     have htN : HasAnyType N := sorry
+     have htM : HasAnyType M := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | pair htM _ => exact ⟨_, _, htM⟩
+     have htN : HasAnyType N := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | pair _ htN => exact ⟨_, _, htN⟩
      if h : ¬ IsValue M then
        pair (reduction_step M htM h) N
      else
-       have h : ¬ IsValue N := sorry
-       pair M (reduction_step N htN h)
+       have h' : ¬ IsValue N := fun hN => ‹¬ IsValue (pair M N)› ⟨Classical.not_not.mp h, hN⟩
+       pair M (reduction_step N htN h')
   | fst M =>
-     have htM : HasAnyType M := sorry
+     have htM : HasAnyType M := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | fst htM => exact ⟨_, _, htM⟩
      have h : ¬ IsValue M := sorry
      fst (reduction_step M htM h)
   | snd M =>
-     have htM : HasAnyType M := sorry
+     have htM : HasAnyType M := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | snd htM => exact ⟨_, _, htM⟩
      have h : ¬ IsValue M := sorry
      snd (reduction_step M htM h)
   | inl M =>
-     have htM : HasAnyType M  := sorry
-     have h : ¬ IsValue M := sorry
-     inl (reduction_step M htM h)
+     have htM : HasAnyType M := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | inl htM => exact ⟨_, _, htM⟩
+     inl (reduction_step M htM ‹¬ IsValue (inl M)›)
   | inr M =>
-     have htM : HasAnyType M := sorry
-     have h : ¬ IsValue M := sorry
-     inr (reduction_step M htM h)
+     have htM : HasAnyType M := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | inr htM => exact ⟨_, _, htM⟩
+     inr (reduction_step M htM ‹¬ IsValue (inr M)›)
   | case M N O =>
-     have htM : HasAnyType M := sorry
-     have htN : HasAnyType N := sorry
-     have htO : HasAnyType O := sorry
+     have htM : HasAnyType M := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | case htM _ _ => exact ⟨_, _, htM⟩
+     have htN : HasAnyType N := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | case _ htN _ => exact ⟨_, _, htN⟩
+     have htO : HasAnyType O := by obtain ⟨Γ, A, ht'⟩ := ht; cases ht' with | case _ _ htO => exact ⟨_, _, htO⟩
      if h : ¬ IsValue M then
        case (reduction_step M htM h) N O
      else if h : ¬ IsValue N then

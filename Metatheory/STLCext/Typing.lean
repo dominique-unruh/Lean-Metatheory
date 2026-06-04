@@ -636,53 +636,43 @@ theorem canonical_forms_sum {M : Term} {A B : Ty}
   | case _ _ _ => cases hval
   | _ => cases htype
 
-/-- A closed value of an arrow-free type is a basic term -/
-theorem value_arrowFree_isBasicType {M : Term} {t : Ty}
-    (htype : [] ⊢ M : t) (hval : IsValue M) (haf : t.isArrowFree = true) :
+/-- A value of an arrow-free type is a basic term -/
+theorem value_arrowFree_isBasicType {Γ : Context} {M : Term} {t : Ty}
+    (htype : Γ ⊢ M : t) (hval : IsValue M) (haf : t.isArrowFree = true) :
     Term.isBasicType t M := by
   induction t generalizing M with
   | base t' =>
-    match M, htype, hval with
-    | Term.value v, htype, _ => cases htype; simp [Term.isBasicType]
+    cases M with
+    | var _ | app _ _ | fst _ | snd _ | case _ _ _ => simp [IsValue] at hval
+    | lam _ | pair _ _ | inl _ | inr _ | unit | func _ => cases htype
+    | value v => cases htype; simp [Term.isBasicType]
   | unit =>
-    match M, htype, hval with
-    | Term.unit, _, _ => simp [Term.isBasicType]
-    | Term.pair _ _, htype, _ => cases htype
-    | Term.inl _, htype, _ => cases htype
-    | Term.inr _, htype, _ => cases htype
-    | Term.value _, htype, _ => cases htype
-    | Term.func _, htype, _ => cases htype
-    | Term.lam _, htype, _ => cases htype
+    cases M with
+    | var _ | app _ _ | fst _ | snd _ | case _ _ _ => simp [IsValue] at hval
+    | value _ | lam _ | pair _ _ | inl _ | inr _ | func _ => cases htype
+    | unit => simp [Term.isBasicType]
   | prod a b iha ihb =>
     simp [Ty.isArrowFree] at haf
     obtain ⟨haf_a, haf_b⟩ := haf
-    match M, htype, hval with
-    | Term.pair M₁ M₂, htype, hval =>
+    cases M with
+    | var _ | app _ _ | fst _ | snd _ | case _ _ _ => simp [IsValue] at hval
+    | unit | value _ | lam _ | inl _ | inr _ | func _ => cases htype
+    | pair M₁ M₂ =>
       obtain ⟨hval_M₁, hval_M₂⟩ := hval
       cases htype with
-      | pair hM₁ hM₂ =>
-        exact ⟨iha hM₁ hval_M₁ haf_a, ihb hM₂ hval_M₂ haf_b⟩
-    | Term.unit, htype, _ => cases htype
-    | Term.inl _, htype, _ => cases htype
-    | Term.inr _, htype, _ => cases htype
-    | Term.value _, htype, _ => cases htype
-    | Term.func _, htype, _ => cases htype
-    | Term.lam _, htype, _ => cases htype
+      | pair hM₁ hM₂ => exact ⟨iha hM₁ hval_M₁ haf_a, ihb hM₂ hval_M₂ haf_b⟩
   | sum a b iha ihb =>
     simp [Ty.isArrowFree] at haf
     obtain ⟨haf_a, haf_b⟩ := haf
-    match M, htype, hval with
-    | Term.inl M', htype, hval =>
+    cases M with
+    | var _ | app _ _ | fst _ | snd _ | case _ _ _ => simp [IsValue] at hval
+    | unit | value _ | lam _ | pair _ _ | func _ => cases htype
+    | inl M' =>
       cases htype with
       | inl hM => exact iha hM hval haf_a
-    | Term.inr N', htype, hval =>
+    | inr N' =>
       cases htype with
       | inr hN => exact ihb hN hval haf_b
-    | Term.unit, htype, _ => cases htype
-    | Term.pair _ _, htype, _ => cases htype
-    | Term.value _, htype, _ => cases htype
-    | Term.func _, htype, _ => cases htype
-    | Term.lam _, htype, _ => cases htype
   | arr _ _ => simp [Ty.isArrowFree] at haf
 
 /-- Progress: A closed well-typed term is either a value or can step -/
