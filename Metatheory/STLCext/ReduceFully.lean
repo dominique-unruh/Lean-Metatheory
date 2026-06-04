@@ -178,25 +178,27 @@ theorem isNormalForm'_implies_isValue {M : Term} {A : Ty}
         · exact absurd rfl (hnoinl V)
         · exact absurd rfl (hnoinr V)
 
-def reduction_step (term : Term) (ht : HasType ctxt term ty) (_: ¬ IsValue term) : Term := match term with
+def HasAnyType M := ∃ Γ A, HasType Γ M A
+
+def reduction_step (term : Term) (ht : HasAnyType term) (_: ¬ IsValue term) : Term := match term with
   | app (lam M) N =>
-     have htN : HasType sorry N sorry := by
+     have htN : HasAnyType N := sorry
      if h : ¬ IsValue N then
        app (lam M) (reduction_step N htN h)
      else
        M[N]
-  | app (@Term.func _ t u ht hu f) N =>
-     have htN : HasType sorry N sorry := sorry
+  | app (@Term.func _ t u haf hu f) N =>
+     have htN : HasAnyType N := sorry
      if h : ¬ IsValue N then
-       app (@Term.func _ t u ht hu f) (reduction_step N htN h)
+       app (@Term.func _ t u haf hu f) (reduction_step N htN h)
      else if isBasicTerm' N then
        let h : isBasicType t N := sorry
        BasicTerm.toTerm (f (Term.toBasicTerm t N h))
      else
        False.elim sorry
   | app M N =>
-     have htM : HasType sorry M sorry := sorry
-     have htN : HasType sorry N sorry := sorry
+     have htM : HasAnyType M  := sorry
+     have htN : HasAnyType N  := sorry
      if h : ¬ IsValue M then
        app (reduction_step M htM h) N
      else
@@ -207,37 +209,37 @@ def reduction_step (term : Term) (ht : HasType ctxt term ty) (_: ¬ IsValue term
   | case (inl V) N₁ N₂ => N₁[V] -- shortcutting
   | case (inr V) N₁ N₂ => N₂[V] -- shortcutting
   | lam M =>
-     have htM : HasType sorry M sorry := sorry
+     have htM : HasAnyType M := sorry
      have h : ¬ IsValue M := sorry
      lam (reduction_step M htM h)
   | pair M N =>
-     have htM : HasType sorry M sorry := sorry
-     have htN : HasType sorry N sorry := sorry
+     have htM : HasAnyType M := sorry
+     have htN : HasAnyType N := sorry
      if h : ¬ IsValue M then
        pair (reduction_step M htM h) N
      else
        have h : ¬ IsValue N := sorry
        pair M (reduction_step N htN h)
   | fst M =>
-     have htM : HasType sorry M sorry := sorry
+     have htM : HasAnyType M := sorry
      have h : ¬ IsValue M := sorry
      fst (reduction_step M htM h)
   | snd M =>
-     have htM : HasType sorry M sorry := sorry
+     have htM : HasAnyType M := sorry
      have h : ¬ IsValue M := sorry
      snd (reduction_step M htM h)
   | inl M =>
-     have htM : HasType sorry M sorry := sorry
+     have htM : HasAnyType M  := sorry
      have h : ¬ IsValue M := sorry
      inl (reduction_step M htM h)
   | inr M =>
-     have htM : HasType sorry M sorry := sorry
+     have htM : HasAnyType M := sorry
      have h : ¬ IsValue M := sorry
      inr (reduction_step M htM h)
   | case M N O =>
-     have htM : HasType sorry M sorry := sorry
-     have htN : HasType sorry N sorry := sorry
-     have htO : HasType sorry O sorry := sorry
+     have htM : HasAnyType M := sorry
+     have htN : HasAnyType N := sorry
+     have htO : HasAnyType O := sorry
      if h : ¬ IsValue M then
        case (reduction_step M htM h) N O
      else if h : ¬ IsValue N then
@@ -247,103 +249,46 @@ def reduction_step (term : Term) (ht : HasType ctxt term ty) (_: ¬ IsValue term
        case M N (reduction_step O htO h)
   | _ => False.elim sorry
 
-def reduction_step_test0 (term : Term) (ht : ∃ ctxt ty, HasType ctxt term ty) (_: ¬ IsValue term) : Term := match term, ht with
-    -- | app (lam M) N, C, T, @HasType.app _ _ => Term.unit
-    | pair M N => Term.unit
-    | _ => Term.unit
 
+theorem reduction_step_preservation (term : Term) (ht : HasType Γ term A) (red : ¬ IsValue term) :
+    HasType Γ (reduction_step term ⟨_, _, ht⟩ red) A := sorry
 
-def reduction_step_test (term : Term) (ht : HasType ctxt term ty) (_: ¬ IsValue term) : Term := match term, ht, ctxt with
-   | app (lam M) N, _, _ =>
-      let htN := match ht with | HasType.app _ htN => htN
-      if h : ¬ IsValue N then
-        app (lam M) (reduction_step N htN h)
-      else
-        M[N]
-   | app (@Term.func _ t u ht hu f) N,   HasType.app _ htN =>
-      if h : ¬ IsValue N then
-        app (@Term.func _ t u ht hu f) (reduction_step N htN h)
-      else if isBasicTerm' N then
-        let h : isBasicType t N := sorry
-        BasicTerm.toTerm (f (Term.toBasicTerm t N h))
-      else
-        False.elim sorry
-   | app M N,   HasType.app htM htN =>
-      if h : ¬ IsValue M then
-        app (reduction_step M htM h) N
-      else
-        have h : ¬ IsValue N := sorry
-        app M (reduction_step N htN h)
-   | fst (pair M N), _ => M -- shortcutting
-   | snd (pair M N), _ => N -- shortcutting
-   | case (inl V) N₁ N₂, _ => N₁[V] -- shortcutting
-   | case (inr V) N₁ N₂, _ => N₂[V] -- shortcutting
-   | lam M,   HasType.lam htM =>
-      have h : ¬ IsValue M := sorry
-      lam (reduction_step M htM h)
-   | pair M N,   HasType.pair htM htN =>
-      if h : ¬ IsValue M then
-        pair (reduction_step M htM h) N
-      else
-        have h : ¬ IsValue N := sorry
-        pair M (reduction_step N htN h)
-   | fst M,   HasType.fst htM =>
-      have h : ¬ IsValue M := sorry
-      fst (reduction_step M htM h)
-   | snd M,   HasType.snd htM =>
-      have h : ¬ IsValue M := sorry
-      snd (reduction_step M htM h)
-   | inl M,   HasType.inl htM =>
-      have h : ¬ IsValue M := sorry
-      inl (reduction_step M htM h)
-   | inr M,   HasType.inr htM =>
-      have h : ¬ IsValue M := sorry
-      inr (reduction_step M htM h)
-   | case M N O,  HasType.case htM htN htO, _ =>
-      if h : ¬ IsValue M then
-        case (reduction_step M htM h) N O
-      else if h : ¬ IsValue N then
-        case M (reduction_step N htN h) O
-      else
-        have h : ¬ IsValue O := sorry
-        case M N (reduction_step O htO h)
-   | _, _, _ => False.elim sorry
-
-theorem reduction_step_preservation (term : Term) (ht : HasType ctxt term ty) (red : ¬ IsValue term) :
-    HasType ctxt (reduction_step term ht red) ty := sorry
-
-theorem reduction_step_Step (term : Term) (ht : HasType ctxt term ty) (red : ¬ IsValue term) :
+theorem reduction_step_Step (term : Term) (ht : HasAnyType term) (red : ¬ IsValue term) :
     term ⟶ (reduction_step term ht red) := sorry
 
-def reduce_fully (term : Term) (ht : HasType ctxt term ty) : Term :=
+def reduce_fully (term : Term) (ht : HasAnyType term) : Term :=
     if h : IsValue term then
       term
     else
       let term' := reduction_step term ht h
-      have ht' : HasType ctxt term' ty := reduction_step_preservation term ht h
+      have ht' : HasAnyType term' := by
+        rcases ht with ⟨Γ, A, ht⟩
+        have ht' := reduction_step_preservation term ht h
+        exact ⟨Γ, A, ht'⟩
+      -- have ht' : HasType ctxt term' ty := reduction_step_preservation term ht h
       reduce_fully term' ht'
 termination_by false -- TODO Put something suitable here
 decreasing_by sorry
 
-theorem reduce_fully_IsValue (term : Term) (ht : HasType ctxt term ty) :
+theorem reduce_fully_IsValue (term : Term) (ht : HasAnyType term) :
     IsValue (reduce_fully term ht) := sorry
 
 /-- `reduce_fully h` is reachable from `M` by multi-step reduction. -/
-theorem reduce_fully_reduces {Γ : Context} {M : Term} {A : Ty} (h : HasType Γ M A) :
+theorem reduce_fully_reduces {Γ : Context} {M : Term} {A : Ty} (h : HasAnyType M) :
     M ⟶* reduce_fully M h :=
     sorry
 
 /-- `reduce_fully h` is a normal form: no further reduction steps apply. -/
-theorem reduce_fully_isNormalForm {Γ : Context} {M : Term} {A : Ty} (h : HasType Γ M A) :
+theorem reduce_fully_isNormalForm {M : Term} (h : HasAnyType M) :
     IsNormalForm Step (reduce_fully M h) := sorry
 
 /-- Any normal form reachable from `M` equals `reduce_fully h`. -/
-theorem reduce_fully_unique {Γ : Context} {M : Term} {A : Ty} (h : HasType Γ M A)
-    {N : Term} (hsteps : M ⟶* N) (hval : IsValue N) : N = reduce_fully M h :=
+theorem reduce_fully_unique {M : Term} (h : HasAnyType M)
+    {N : Term} (hsteps : M ⟶* N) (hval : IsNormalForm' N) : N = reduce_fully M h :=
   sorry
 
 /-- Any normal form reachable from `M` equals `reduce_fully h`. -/
-theorem reduce_fully_unique' {Γ : Context} {M : Term} {A : Ty} (h : HasType Γ M A)
+theorem reduce_fully_unique' {M : Term} (h : HasAnyType M)
     {N : Term} (hsteps : M ⟶* N) (hnf : IsNormalForm Step N) : N = reduce_fully M h :=
   sorry
 
