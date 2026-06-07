@@ -94,8 +94,8 @@ inductive HasType : Context → Term → Ty → Prop where
   /-- Value of base type -/
   | value (v : BaseTypeValue t) : HasType Γ  (Term.value v) (Ty.base t)
   /-- Function on base types -/
-  | func {t u ht hu} f :
-    HasType Γ (@Term.func _ t u ht hu f) (Ty.arr t u)
+  | func {t u ht hu} d f :
+    HasType Γ (@Term.func _ t u ht hu d f) (Ty.arr t u)
 
 /-- Notation for typing judgment -/
 scoped notation:50 Γ " ⊢ " M " : " A => HasType Γ M A
@@ -192,7 +192,7 @@ theorem weakening : ∀ {Γ Γ' : Context} {M : Term} {A : Ty},
       | succ n' => exact h_pres n' D h_get
   | unit => exact HasType.unit
   | value v => exact HasType.value v
-  | func f => exact HasType.func f
+  | func d f => exact HasType.func d f
 
 /-! ## Shift Typing -/
 
@@ -264,7 +264,7 @@ theorem typing_shift_at_aux {Γ Γ₁ Γ₂ : Context} {M : Term} {A B : Ty}
       exact ih₂
   | unit => simp only [Term.shift]; exact HasType.unit
   | value v => simp only [Term.shift]; exact HasType.value v
-  | func f => simp only [Term.shift]; exact HasType.func f
+  | func d f => simp only [Term.shift]; exact HasType.func d f
 
 /-- Shifting preserves typing -/
 theorem typing_shift {Γ : Context} {N : Term} {A B : Ty}
@@ -426,10 +426,10 @@ theorem substitution_typing_gen_aux {Γ : Context} {M : Term} {B : Ty}
     intro Γ₁ Γ₂ N A j hΓ hj hN
     simp only [Term.subst]
     exact HasType.value v
-  | func f =>
+  | func d f =>
     intro Γ₁ Γ₂ N A j hΓ hj hN
     simp only [Term.subst]
-    exact HasType.func f
+    exact HasType.func d f
 
 /-- Substitution typing (main lemma) -/
 theorem substitution_typing {Γ : Context} {M N : Term} {A B : Ty}
@@ -561,7 +561,7 @@ def IsValue : Term → Prop
   | Term.inr M => IsValue M
   | Term.unit => True
   | Term.value _ => True
-  | Term.func _ => True
+  | Term.func _ _ => True
   | _ => False
 
 private def decidableIsValue : (t : Term) → Decidable (IsValue t)
@@ -580,7 +580,7 @@ private def decidableIsValue : (t : Term) → Decidable (IsValue t)
   | Term.case _ _ _ => isFalse id
   | Term.unit => isTrue trivial
   | Term.value _ => isTrue trivial
-  | Term.func _ => isTrue trivial
+  | Term.func _ _ => isTrue trivial
 
 instance : Decidable (IsValue t) := decidableIsValue t
 
@@ -588,8 +588,8 @@ instance : Decidable (IsValue t) := decidableIsValue t
 theorem canonical_forms_arr {M : Term} {A B : Ty}
     (htype : [] ⊢ M : A ⇒ B) (hval : IsValue M) :
     (∃ M', M = Term.lam M') ∨
-    (∃ (t u : Ty) (ht : t.isArrowFree) (hu : u.isArrowFree) (f : BasicTerm t → BasicTerm u),
-      M = @Term.func _ t u ht hu f) := by
+    (∃ (t u : Ty) (ht : t.isArrowFree) (hu : u.isArrowFree) (d : FuncData) (f : BasicTerm t → BasicTerm u),
+      M = @Term.func _ t u ht hu d f) := by
   cases M with
   | var n => cases htype with | var h => cases h
   | lam M' => exact Or.inl ⟨M', rfl⟩
@@ -602,7 +602,7 @@ theorem canonical_forms_arr {M : Term} {A B : Ty}
   | case _ _ _ => cases hval
   | unit => cases htype
   | value _ => cases htype
-  | @func t u ht hu f => exact Or.inr ⟨t, u, ht, hu, f, rfl⟩
+  | @func t u ht hu d f => exact Or.inr ⟨t, u, ht, hu, d, f, rfl⟩
 
 /-- Canonical forms for product types -/
 theorem canonical_forms_prod {M : Term} {A B : Ty}
@@ -644,19 +644,19 @@ theorem value_arrowFree_isBasicType {Γ : Context} {M : Term} {t : Ty}
   | base t' =>
     cases M with
     | var _ | app _ _ | fst _ | snd _ | case _ _ _ => simp [IsValue] at hval
-    | lam _ | pair _ _ | inl _ | inr _ | unit | func _ => cases htype
+    | lam _ | pair _ _ | inl _ | inr _ | unit | func _ _ => cases htype
     | value v => cases htype; simp [Term.isBasicType]
   | unit =>
     cases M with
     | var _ | app _ _ | fst _ | snd _ | case _ _ _ => simp [IsValue] at hval
-    | value _ | lam _ | pair _ _ | inl _ | inr _ | func _ => cases htype
+    | value _ | lam _ | pair _ _ | inl _ | inr _ | func _ _ => cases htype
     | unit => simp [Term.isBasicType]
   | prod a b iha ihb =>
     simp [Ty.isArrowFree] at haf
     obtain ⟨haf_a, haf_b⟩ := haf
     cases M with
     | var _ | app _ _ | fst _ | snd _ | case _ _ _ => simp [IsValue] at hval
-    | unit | value _ | lam _ | inl _ | inr _ | func _ => cases htype
+    | unit | value _ | lam _ | inl _ | inr _ | func _ _ => cases htype
     | pair M₁ M₂ =>
       obtain ⟨hval_M₁, hval_M₂⟩ := hval
       cases htype with
@@ -666,7 +666,7 @@ theorem value_arrowFree_isBasicType {Γ : Context} {M : Term} {t : Ty}
     obtain ⟨haf_a, haf_b⟩ := haf
     cases M with
     | var _ | app _ _ | fst _ | snd _ | case _ _ _ => simp [IsValue] at hval
-    | unit | value _ | lam _ | pair _ _ | func _ => cases htype
+    | unit | value _ | lam _ | pair _ _ | func _ _ => cases htype
     | inl M' =>
       cases htype with
       | inl hM => exact iha hM hval haf_a
@@ -700,7 +700,7 @@ theorem progress {M : Term} {A : Ty}
           rw [hM'_eq]
           exact ⟨Term.subst0 N' M'', Step.beta M'' N'⟩
         | inr hr =>
-          obtain ⟨t, u, ht, hu, f, hM'_eq⟩ := hr
+          obtain ⟨t, u, ht, hu, d, f, hM'_eq⟩ := hr
           have ih_N : IsValue N' ∨ ∃ N, Step N' N := progress hN'
           cases ih_N with
           | inl hval_N =>
@@ -712,12 +712,12 @@ theorem progress {M : Term} {A : Ty}
               right
               have hbasic : Term.isBasicType B N' :=
                 value_arrowFree_isBasicType hN' hval_N ht
-              exact ⟨_, Step.funcApp f N' hbasic⟩
+              exact ⟨_, Step.funcApp d f N' hbasic⟩
           | inr hstep_N =>
             obtain ⟨N'', hstep'⟩ := hstep_N
             right
             rw [hM'_eq]
-            exact ⟨Term.app (@Term.func _ t u ht hu f) N'', Step.appR hstep'⟩
+            exact ⟨Term.app (@Term.func _ t u ht hu d f) N'', Step.appR hstep'⟩
       | inr hstep =>
         obtain ⟨M'', hstep'⟩ := hstep
         right
@@ -821,7 +821,7 @@ theorem progress {M : Term} {A : Ty}
   | Term.value _ =>
     left
     exact trivial
-  | Term.func _ =>
+  | Term.func _ _ =>
     left
     exact trivial
 

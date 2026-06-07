@@ -160,7 +160,7 @@ def IsNeutral : Term → Prop
   | Term.case _ _ _ => True
   | Term.unit => False
   | Term.value _ => False
-  | Term.func _ => False
+  | Term.func _ _ => False
 
 theorem neutral_var (n : Nat) : IsNeutral (Term.var n) := trivial
 
@@ -408,7 +408,7 @@ theorem cr_props_all : ∀ A, CR_Props A := by
           | beta => exact False.elim h_neut
           | appL hstep => unfold Reducible at h_red; exact h_red _ hstep Q' hQ'_red
           | appR hQ'' => exact ih _ hQ'' (cr2_reducible_red A Q' _ hQ'_red hQ'')
-          | funcApp _ _ _ => exact False.elim h_neut
+          | funcApp _ _ _ _ => exact False.elim h_neut
         · cases M with
           | var _ => exact trivial
           | lam _ => exact False.elim h_neut
@@ -1519,7 +1519,7 @@ def applySubst (σ : Nat → Term) : Term → Term
   | Term.case M N₁ N₂ => Term.case (applySubst σ M) (applySubst (liftSubst σ) N₁) (applySubst (liftSubst σ) N₂)
   | Term.unit => Term.unit
   | Term.value v => Term.value v
-  | @Term.func _ t u ht hu f => @Term.func _ t u ht hu f
+  | @Term.func _ t u ht hu d f => @Term.func _ t u ht hu d f
 where
   liftSubst (σ : Nat → Term) (n : Nat) : Term :=
     if n = 0 then Term.var 0 else Term.shift1 (σ (n - 1))
@@ -1994,12 +1994,12 @@ theorem fundamental_lemma : ∀ {Γ : Context} {M : Term} {A : Ty} {σ : Nat →
     simp only [applySubst]
     unfold Reducible
     exact sn_intro (fun _ h => nomatch h)
-  | @func Γ' t u ht hu f =>
+  | @func Γ' t u ht hu d f =>
     simp only [applySubst]
     unfold Reducible
     intro N hN
     have hN_sn : SN N := cr1_reducible_sn t N hN
-    suffices h : ∀ Q, SN Q → Reducible t Q → Reducible u (Term.app (@Term.func _ t u ht hu f) Q) by
+    suffices h : ∀ Q, SN Q → Reducible t Q → Reducible u (Term.app (@Term.func _ t u ht hu d f) Q) by
       exact h N hN_sn hN
     intro Q hQ_sn
     induction hQ_sn with
@@ -2010,7 +2010,7 @@ theorem fundamental_lemma : ∀ {Γ : Context} {M : Term} {A : Ty} {σ : Nat →
         cases hR with
         | appL hstep => cases hstep
         | appR hQ'' => exact ihQ _ hQ'' (cr2_reducible_red t Q' _ hQ'_red hQ'')
-        | funcApp _ _ h => exact reducible_basicTerm (f (Term.toBasicTerm t Q' h))
+        | funcApp _ _ _ h => exact reducible_basicTerm (f (Term.toBasicTerm t Q' h))
       · exact trivial
 
 /-! ## Strong Normalization Theorem -/

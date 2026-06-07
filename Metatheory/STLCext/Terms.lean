@@ -60,8 +60,7 @@ inductive Term : Type _ where
   | unit : Term                          -- Unit value ()
   | value : ∀ {t : BaseType}, BaseTypeValue t → Term -- Value of base type `t`
   | func : ∀ {t : Ty} {u : Ty} {ht : t.isArrowFree} {hu : u.isArrowFree},
-        (BasicTerm t → BasicTerm u) → Term  -- A basic function (hardcoded on base values)
--- deriving Repr, DecidableEq
+        FuncData → (BasicTerm t → BasicTerm u) → Term  -- A basic function (hardcoded on base values)
 
 namespace Term
 
@@ -91,7 +90,7 @@ def shift (d : Int) (c : Nat) : Term → Term
   | case M N₁ N₂ => case (shift d c M) (shift d (c + 1) N₁) (shift d (c + 1) N₂)
   | unit => unit
   | value v => value v
-  | @func _ _ _ ht hu f => @func _ _ _ ht hu f
+  | @func _ _ _ ht hu d f => @func _ _ _ ht hu d f
 
 /-- Shorthand for shifting by 1 from cutoff 0 -/
 abbrev shift1 (M : Term) : Term := shift 1 0 M
@@ -116,7 +115,7 @@ def subst (j : Nat) (N : Term) : Term → Term
   | case M N₁ N₂ => case (subst j N M) (subst (j + 1) (shift1 N) N₁) (subst (j + 1) (shift1 N) N₂)
   | unit => unit
   | value v => value v
-  | @func _ _ _ ht hu f => @func _ _ _ ht hu f
+  | @func _ _ _ ht hu d f => @func _ _ _ ht hu d f
 
 /-- Substitute for variable 0 -/
 abbrev subst0 (N : Term) (M : Term) : Term := subst 0 N M

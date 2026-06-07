@@ -20,29 +20,18 @@ Simple types now include:
 namespace Metatheory.STLCext
 
 -- TODO Document everything related to STLCspec
-class STLCspec : Type (max u v + 1) where
+class STLCspec : Type (max u v w + 1) where
   baseTypes : Type u
   baseTypeValue : baseTypes → Type v
-  -- basicFunctions : Type _ := Empty
-  -- basicFunctionType : basicFunctions → (baseTypes × baseTypes)
-  -- [decEqBase : DecidableEq baseTypes]
-  -- [reprBase : Repr baseTypes]
-  -- [decEqValues : ∀ t : baseTypes, DecidableEq (baseTypeValue t)]
-  -- [reprValues : ∀ t : baseTypes, Repr (baseTypeValue t)]
+  funcData : Type w := PUnit
 
 @[reducible]
 def BaseType [inst : STLCspec] := inst.baseTypes
 @[reducible]
 def BaseTypeValue [inst : STLCspec] : BaseType → Type _ := inst.baseTypeValue
--- @[reducible]
--- def BasicFunctionTypes [inst : STLCspec] := inst.basicFunctionType
+@[reducible]
+def FuncData [inst : STLCspec] : Type _ := inst.funcData
 
--- instance [s : STLCspec] : DecidableEq BaseType := s.decEqBase
--- instance [s : STLCspec] : Repr BaseType := s.reprBase
--- instance [s : STLCspec] (t: BaseType) : DecidableEq (BaseTypeValue t) := s.decEqValues t
--- instance [s : STLCspec] (t: BaseType) : Repr (BaseTypeValue t) := s.reprValues t
--- instance [s : STLCspec] : DecidableEq BasicFunctions := sorry
--- instance [s : STLCspec] : Repr BasicFunctions := sorry
 
 /-! ## Simple Types with Products and Sums -/
 
@@ -56,7 +45,6 @@ inductive Ty where
   | prod : Ty → Ty → Ty    -- Product type A × B
   | sum  : Ty → Ty → Ty    -- Sum type A + B
   | unit : Ty              -- Unit type (terminal object)
--- deriving DecidableEq, Repr
 
 /-- Notation for function types -/
 scoped infixr:70 " ⇒ " => Ty.arr

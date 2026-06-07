@@ -33,11 +33,11 @@ def complete : Term → Term
   | var n => var n
   | lam M => lam (complete M)
   | app (lam M) N => (complete M)[complete N]
-  | app (@func _ t u ht hu f) N =>
+  | app (@func _ t u ht hu d f) N =>
       let N' := complete N
       open Classical in
       if h : Term.isBasicType t N' then BasicTerm.toTerm (f (Term.toBasicTerm t N' h))
-      else Term.app (@Term.func _ t u ht hu f) N'
+      else Term.app (@Term.func _ t u ht hu d f) N'
   | app M N => app (complete M) (complete N)
   | pair M N => pair (complete M) (complete N)
   | fst (pair M _) => complete M
@@ -51,7 +51,7 @@ def complete : Term → Term
   | case M N₁ N₂ => case (complete M) (complete N₁) (complete N₂)
   | unit => unit
   | value v => value v
-  | @func _ t u ht hu f => @func _ t u ht hu f
+  | @func _ t u ht hu d f => @func _ t u ht hu d f
 
 /-! ## Basic Properties -/
 
@@ -209,13 +209,13 @@ theorem par_complete {M N : Term} (h : M ⇒ N) : N ⇒ complete M := by
     | value v =>
       simp [complete]
       exact ParRed.app ihM ihN
-    | @func t u ht hu f =>
+    | @func t u ht hu d f =>
       simp only [complete]
       split
       · exact ParRed.funcApp ihN ‹_›
-      · exact ParRed.app (ParRed.func f) ihN
-    | @funcApp t u ht hu f K K' K_red_K'' basic_K' =>
-        let compl_fK := complete (Term.app (func (ht:=ht) (hu:=hu) f) K)
+      · exact ParRed.app (ParRed.func d f) ihN
+    | @funcApp t u ht hu d f K K' K_red_K'' basic_K' =>
+        let compl_fK := complete (Term.app (func (ht:=ht) (hu:=hu) d f) K)
         let fK' := (f (toBasicTerm t K' basic_K')).toTerm
         have ihM : fK' ⇒ compl_fK := ihM
         have basic_fK' : isBasicType u fK' := isBasicType_toTerm _
@@ -283,10 +283,10 @@ theorem par_complete {M N : Term} (h : M ⇒ N) : N ⇒ complete M := by
   | value v =>
     simp [complete]
     exact ParRed.value v
-  | func f =>
+  | func d f =>
     simp [complete]
-    exact ParRed.func f
-  | @funcApp t u ht hu f N N' hN basic_N' ihN =>
+    exact ParRed.func d f
+  | @funcApp t u ht hu d f N N' hN basic_N' ihN =>
     simp only [complete]
     split
     · rename_i basic_N

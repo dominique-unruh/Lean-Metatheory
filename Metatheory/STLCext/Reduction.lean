@@ -72,8 +72,8 @@ inductive Step : Term → Term → Prop where
   | caseR : ∀ {M N₁ N₂ N₂'}, Step N₂ N₂' → Step (case M N₁ N₂) (case M N₁ N₂')
   /-- Function application: app(func f)(N) → f(N) when N is a basic term -/
   | funcApp : ∀ {t u : Ty} {ht : t.isArrowFree} {hu : u.isArrowFree}
-      (f : BasicTerm t → BasicTerm u) (N : Term) (h : Term.isBasicType t N),
-      Step (app (@Term.func _ t u ht hu f) N) (BasicTerm.toTerm (f (Term.toBasicTerm t N h)))
+      (d : FuncData) (f : BasicTerm t → BasicTerm u) (N : Term) (h : Term.isBasicType t N),
+      Step (app (@Term.func _ t u ht hu d f) N) (BasicTerm.toTerm (f (Term.toBasicTerm t N h)))
 
 /-- Notation for reduction -/
 scoped infix:50 " ⟶ " => Step
@@ -267,11 +267,11 @@ private theorem subst_preserves_step (j : Nat) {M M' N : Term} (hstep : Step M M
     simp only [Term.subst]
     apply Step.caseR
     apply ih
-  | funcApp f Nb h =>
+  | funcApp d f Nb h =>
     simp only [Term.subst]
     rw [Term.isBasicType_no_subst j N h,
         Term.isBasicType_no_subst j N (Term.isBasicType_toTerm (f (Term.toBasicTerm _ Nb h)))]
-    exact Step.funcApp f Nb h
+    exact Step.funcApp d f Nb h
 
 /-- Substitution preserves reduction in the substituted term -/
 theorem subst0_step_left {M M' N : Term} (hstep : Step M M') :
@@ -349,11 +349,11 @@ private theorem shift_preserves_step (d : Nat) (c : Nat) {M M' : Term} (hstep : 
     simp only [Term.shift]
     apply Step.caseR
     apply ih
-  | funcApp f Nb h =>
+  | funcApp fd f Nb h =>
     simp only [Term.shift]
     rw [Term.isBasicType_no_shift d c h,
         Term.isBasicType_no_shift d c (Term.isBasicType_toTerm (f (Term.toBasicTerm _ Nb h)))]
-    exact Step.funcApp f Nb h
+    exact Step.funcApp fd f Nb h
 
 /-- Substitution preserves reduction in argument (multi-step) -/
 theorem subst0_step_right {M N N' : Term} (hstep : Step N N') :
